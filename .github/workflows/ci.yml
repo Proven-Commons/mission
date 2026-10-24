@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s bar/tests -v
+
+  lean-self-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-lean
+      - name: Build the template
+        working-directory: bar/template
+        run: lake build
+      - run: python3 -m unittest discover -s bar/tests -k LeanTest -v
+        env:
+          BAR_LEAN: "1"
+
+  # The template through the same workflow a library repo calls. It is
+  # in progress (no reviewer has approved it), so item 1 stays open and
+  # every other item must pass.
+  template:
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/verified-bar.yml
+    with:
+      project-dir: bar/template
+      bar-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      offline: true

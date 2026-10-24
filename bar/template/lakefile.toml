@@ -1,0 +1,16 @@
+name = "clamp"
+version = "0.1.0"
+defaultTargets = ["Clamp", "Spec", "Proofs", "clamp"]
+
+[[lean_lib]]
+name = "Clamp"
+
+[[lean_lib]]
+name = "Spec"
+
+[[lean_lib]]
+name = "Proofs"
+
+[[lean_exe]]
+name = "clamp"
+root = "Main"

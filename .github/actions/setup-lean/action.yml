@@ -1,0 +1,20 @@
+name: Set up Lean for the bar check
+description: Install elan and bubblewrap, and let bubblewrap make the sandbox lake comparator needs.
+
+runs:
+  using: composite
+  steps:
+    - name: Install elan
+      shell: bash
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+          | sh -s -- -y --default-toolchain none
+        echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+    - name: Install bubblewrap
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -yq bubblewrap
+        # Ubuntu 24.04 blocks the unprivileged user namespaces bubblewrap uses.
+        sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+        bwrap --ro-bind / / --dev /dev --proc /proc --unshare-all true

@@ -1,0 +1,56 @@
+name: verified bar
+
+# The bar check for a Proven Commons library. Call it from the library's
+# repo, as in bar/template/.github/workflows/bar.yml:
+#
+#   jobs:
+#     bar:
+#       uses: Proven-Commons/mission/.github/workflows/verified-bar.yml@main
+#
+# It builds the project, reruns its differential tests, and runs
+# bar/check.py, which runs `lake comparator --paranoid`. The job fails
+# when any bar item fails. The report is the job summary.
+
+on:
+  workflow_call:
+    inputs:
+      project-dir:
+        description: Folder of the Lean project inside the calling repo.
+        type: string
+        default: "."
+      bar-ref:
+        description: Ref of Proven-Commons/mission to take the checker from.
+        type: string
+        default: main
+      offline:
+        description: Do not ask GitHub to confirm the recorded spec approval.
+        type: boolean
+        default: false
+
+jobs:
+  bar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check.py reads who committed to the spec files.
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: Proven-Commons/mission
+          ref: ${{ inputs.bar-ref }}
+          path: .bar-tools
+      - uses: ./.bar-tools/.github/actions/setup-lean
+      - name: Build
+        working-directory: ${{ inputs.project-dir }}
+        run: lake build
+      - name: Check the bar
+        working-directory: ${{ inputs.project-dir }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OFFLINE: ${{ inputs.offline && '--offline' || '' }}
+        run: python3 "$GITHUB_WORKSPACE/.bar-tools/bar/check.py" . --run-tests $OFFLINE --markdown "$GITHUB_STEP_SUMMARY"

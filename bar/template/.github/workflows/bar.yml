@@ -1,0 +1,13 @@
+name: verified bar
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  bar:
+    # pull-requests: read lets the check confirm the spec approval on GitHub.
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: Proven-Commons/mission/.github/workflows/verified-bar.yml@main
