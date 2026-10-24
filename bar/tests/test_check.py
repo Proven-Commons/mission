@@ -18,6 +18,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 BAR = Path(__file__).resolve().parent.parent
 TEMPLATE = BAR / "template"
@@ -89,6 +90,11 @@ def approved_by(project, login="reviewer-b"):
 class CheckTest(unittest.TestCase):
     def setUp(self):
         self.p = Project()
+        # CI sets GITHUB_REPOSITORY to this repo; the tests set it themselves.
+        env = mock.patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("GITHUB_REPOSITORY", None)
 
     def tearDown(self):
         self.p.close()
@@ -174,10 +180,9 @@ class CheckTest(unittest.TestCase):
     def test_pull_request_in_another_repo_fails(self):
         self.p.approve()
         os.environ["GITHUB_REPOSITORY"] = "Proven-Commons/other"
-        try:
-            self.assertEqual(self.status(1, offline=False, github=approved_by(self.p)), "FAIL")
-        finally:
-            del os.environ["GITHUB_REPOSITORY"]
+        self.assertEqual(self.status(1, offline=False, github=approved_by(self.p)), "FAIL")
+        os.environ["GITHUB_REPOSITORY"] = "proven-commons/CLAMP"
+        self.assertEqual(self.status(1, offline=False, github=approved_by(self.p)), "PASS")
 
     def test_review_of_other_text_fails(self):
         # The reviewer approved the pull request at a commit where the

@@ -35,11 +35,11 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # check.py reads who committed to the spec files.
           fetch-depth: 0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: Proven-Commons/mission
           ref: ${{ inputs.bar-ref }}
