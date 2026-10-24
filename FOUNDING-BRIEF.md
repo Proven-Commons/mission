@@ -37,7 +37,7 @@ Verify the small set of libraries that most software depends on, in the open, to
 Each project follows the same seven steps. The playbook is public. Each step has a named owner and a check.
 
 1. Pick the target. Score it (see Target scoring). Freeze the original tests, the written specification or RFC, and sample files.
-2. Write the specification: `SPEC.md` in plain words, and a Lean file that states each property as a theorem with `sorry` in place of the proof. State what inputs are valid, what errors are allowed, and what must always hold. Pair each safety property with one that a program doing nothing would fail. A reviewer who did not write the specification must approve it, and the approval records a hash of what was approved.
+2. Write the specification: `SPEC.md` in plain words, and a Lean file that states each property as a theorem with `sorry` in place of the proof. State what inputs are valid, what errors are allowed, and what must always hold. Pair each safety property with one that a program doing nothing would fail, or say on the project page that usefulness rests on tests alone. A reviewer who did not write the specification must approve it, and the approval records a hash of what was approved.
 3. Build a proof-friendly version in Lean. Pure functions. Total functions that return an error instead of crashing. No pointer tricks carried over from C.
 4. Prove the specification's theorems, under the same names, with the lemmas under them. A failed proof is treated as a bug report against the code, the specification, or a missing lemma.
 5. Attack the result. Run `lake comparator --paranoid`. Try to write a wrong program that still meets each statement. Run differential tests against the original library on random and mutated inputs. Record the seed, the input count, and the failures found. Write up what the attack found as a review record in this repo.
@@ -48,13 +48,13 @@ Each project follows the same seven steps. The playbook is public. Each step has
 
 A project may use the word verified in public only when all of these hold. The playbook page `playbook/verified-bar.md` says how each one is checked, and `bar/` in this repo holds the checker and the CI workflow every library repo runs.
 
-1. The specification is public, approved by a reviewer apart from the author, and pinned. The approval records a hash of the statements and of the page's claims and limits, and any later change voids it.
+1. The specification is public, approved by a reviewer on the org's list who did not write it, and pinned. The approval records a hash of the specification, the whole project page, the programs people run, and the tests, and any later change voids it.
 2. Each public claim names the theorem behind it, and the reviewer has checked that the theorem says what the claim says.
-3. One command, `lake comparator --paranoid`, re-checks that the proofs prove exactly the approved statements, with only the standard Lean axioms, under every kernel shipped with Lean.
-4. The code that runs is the code that was proved. Project code uses no `implemented_by`, `extern`, `unsafe`, native evaluation, or `axiom`, and no `sorry` or `admit` outside the statements, except for exceptions the page lists.
-5. Differential tests against the original ran on random and mutated inputs, and the oracle, seed, input count, and result are in the repo.
-6. The public page lists what is outside the proof: the kernel, compiler, runtime, hardware, and any unverified code.
-7. The check runs in CI on every change, and releases come only from commits where it passed.
+3. One command, `lake comparator --paranoid`, re-checks that the proofs prove exactly the approved statements, with only the standard Lean axioms, under every kernel shipped with Lean. Nothing outside the approved text and the code under proof can change what a statement means.
+4. The code that runs is the code that was proved. The programs people run call the proved functions, and project code uses no `implemented_by`, `extern`, `unsafe`, native evaluation, metaprogramming, or `axiom`, and no `sorry` or `admit` outside the statements, except for exceptions the page lists.
+5. Differential tests against the original ran on random and mutated inputs, and the oracle, seed, input count, and result are committed in the repo.
+6. The public page lists what is outside the proof: the kernel, compiler, runtime, hardware, dependencies, and any unverified code.
+7. The check runs in CI on every change, the default branch requires it, and releases are tagged only from the default branch.
 
 ## Target scoring
 

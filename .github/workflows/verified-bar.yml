@@ -5,7 +5,16 @@ name: verified bar
 #
 #   jobs:
 #     bar:
-#       uses: Proven-Commons/mission/.github/workflows/verified-bar.yml@main
+#       permissions:
+#         contents: read
+#         pull-requests: read
+#       uses: Proven-Commons/mission/.github/workflows/verified-bar.yml@<ref>
+#       with:
+#         bar-ref: <ref>
+#
+# Pin both to the same tag or commit: the workflow file and the checker
+# it fetches are taken from mission separately, so pinning one alone
+# does not pin the checker.
 #
 # It builds the project, reruns its differential tests, and runs
 # bar/check.py, which runs `lake comparator --paranoid`. The job fails
@@ -19,11 +28,11 @@ on:
         type: string
         default: "."
       bar-ref:
-        description: Ref of Proven-Commons/mission to take the checker from.
+        description: Ref of Proven-Commons/mission to take the checker from. Use the ref this workflow is called at.
         type: string
         default: main
       offline:
-        description: Do not ask GitHub to confirm the recorded spec approval.
+        description: Do not ask GitHub to confirm the recorded spec approval. A project marked verified then fails.
         type: boolean
         default: false
 
@@ -39,18 +48,28 @@ jobs:
         with:
           # check.py reads who committed to the spec files.
           fetch-depth: 0
-      - uses: actions/checkout@v5
-        with:
-          repository: Proven-Commons/mission
-          ref: ${{ inputs.bar-ref }}
-          path: .bar-tools
-      - uses: ./.bar-tools/.github/actions/setup-lean
+      # The checker goes outside the workspace, so the project cannot
+      # hide code in, or shadow, the folder it lives in.
+      - name: Fetch the checker
+        env:
+          BAR_REF: ${{ inputs.bar-ref }}
+        run: |
+          tools="$RUNNER_TEMP/bar-tools"
+          git init -q "$tools"
+          git -C "$tools" fetch -q --depth 1 https://github.com/Proven-Commons/mission "$BAR_REF"
+          git -C "$tools" checkout -q FETCH_HEAD
+          echo "BAR_TOOLS=$tools" >> "$GITHUB_ENV"
+      - name: Install elan and bubblewrap
+        run: sh "$BAR_TOOLS/bar/setup-lean.sh"
       - name: Build
         working-directory: ${{ inputs.project-dir }}
+        timeout-minutes: 50
         run: lake build
       - name: Check the bar
         working-directory: ${{ inputs.project-dir }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           OFFLINE: ${{ inputs.offline && '--offline' || '' }}
-        run: python3 "$GITHUB_WORKSPACE/.bar-tools/bar/check.py" . --run-tests $OFFLINE --markdown "$GITHUB_STEP_SUMMARY"
+          # The proof check and the tests get 120 minutes each, inside the job's 300.
+          BAR_STEP_TIMEOUT_MINUTES: "120"
+        run: python3 "$BAR_TOOLS/bar/check.py" . --run-tests $OFFLINE --markdown "$GITHUB_STEP_SUMMARY"

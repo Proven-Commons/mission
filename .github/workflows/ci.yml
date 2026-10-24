@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-lean
+      - run: sh bar/setup-lean.sh
       - name: Build the template
         working-directory: bar/template
         run: lake build

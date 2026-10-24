@@ -41,37 +41,68 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+BAR_VERSION = "2"
 STANDARD_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
 
-# Page sections. The first three are covered by the spec approval.
+# People the org has named as spec reviewers, one GitHub login each. Kept
+# next to this script so a library cannot add to it; only a change to
+# this repo can.
+REVIEWERS_FILE = Path(__file__).resolve().parent / "reviewers.toml"
+
+# Limit for each long step (the proof check, the tests), in seconds. CI
+# sets it so both steps fit inside the job's own limit.
+STEP_TIMEOUT = int(os.environ.get("BAR_STEP_TIMEOUT_MINUTES", "120")) * 60
+
+# Page sections the page must have.
 PROVED = "What is proved"
 NOT_PROVED = "What is not proved"
 TRUST = "What you must trust"
 RECHECK = "Re-check"
-APPROVED_SECTIONS = [PROVED, NOT_PROVED, TRUST]
+SECTIONS = [PROVED, NOT_PROVED, TRUST, RECHECK]
 TRUST_WORDS = ["kernel", "compiler", "runtime", "hardware"]
 RECHECK_COMMAND = "lake comparator --paranoid"
 
 # Lean features that let the code that runs differ from the code that
-# was proved, or that skip the kernel. Matched outside comments and
-# string literals. `sorry` is allowed in the challenge file only.
+# was proved, skip the kernel, or change what a statement means without
+# changing its text. Matched outside comments and string literals.
+# `sorry` is allowed in the challenge file only.
+MODIFIERS = r"(@\[[^\]]*\][ \t]*)?((scoped|local|private|protected|noncomputable|public)[ \t]+)*"
 FORBIDDEN = [
     ("sorry", re.compile(r"\bsorry\b")),
     ("admit", re.compile(r"\badmit\b")),
-    ("implemented_by", re.compile(r"\bimplemented_?[bB]y\b")),
-    ("extern", re.compile(r"\bextern\b")),
+    ("implemented_by", re.compile(r"[iI]mplemented_?[bB]y\w*")),
+    ("extern", re.compile(r"\bextern(Attr)?\b")),
     ("unsafe", re.compile(r"\b\w*[uU]nsafe\w*\b")),
     ("native evaluation",
      re.compile(r"\bnative_decide\b|\+\s*native\b|\bnative\s*:=\s*true\b"
                 r"|\bofReduce(Bool|Nat)\b|\btrustCompiler\b")),
     ("skipKernelTC", re.compile(r"\bskipKernelTC\b")),
-    ("axiom", re.compile(r"(?m)^[ \t]*(@\[[^\]]*\][ \t]*)?"
-                         r"((private|protected|noncomputable)[ \t]+)*axiom\b")),
+    ("axiom", re.compile(rf"(?m)^[ \t]*{MODIFIERS}axiom\b")),
+    # Metaprogramming can do any of the above from inside a string the
+    # scan cannot read, and notation can change what a statement says.
+    ("import Lean", re.compile(r"(?m)^[ \t]*((public|meta|private)[ \t]+)*import[ \t]+"
+                               r"([^\n]*[ \t])?(Lean|Lake)(\.[\w.]+)?(?=\s|$)")),
+    ("notation or macro", re.compile(rf"(?m)^[ \t]*{MODIFIERS}"
+                                     r"(notation\d?|infixl|infixr|infix|prefix|postfix|macro|syntax|elab)"
+                                     r"(?=[ \t]*[:(\"]|[ \t]+\w)")),
+    ("metaprogram", re.compile(r"\b(macro_rules|elab_rules|declare_syntax_cat|run_cmd|run_elab|run_meta"
+                               r"|simproc|dsimproc|simproc_decl|dsimproc_decl|binder_predicate)\b")),
 ]
 
-NOTATION = re.compile(r"(?m)^[ \t]*(@\[[^\]]*\][ \t]*)?((scoped|local)[ \t]+)?"
-                      r"(notation|infixl?|infixr|prefix|postfix|macro|"
-                      r"macro_rules|syntax|elab|elab_rules)\b")
+INSTANCE = re.compile(rf"(?m)^[ \t]*{MODIFIERS}instance\b|\battribute[ \t]*\[[^\]]*\binstance\b")
+
+# Keys a lakefile.toml may use. Anything else, such as extra compiler or
+# linker arguments, plugins or native libraries, can change the program
+# without changing the Lean code.
+LAKE_KEYS = {
+    "package": {"name", "version", "description", "keywords", "homepage", "license",
+                "licenseFiles", "readmeFile", "defaultTargets", "require", "lean_lib",
+                "lean_exe", "leanOptions", "testDriver", "lintDriver"},
+    "lean_lib": {"name", "srcDir", "roots", "globs", "libName", "leanOptions"},
+    "lean_exe": {"name", "srcDir", "root", "exeName", "leanOptions"},
+    "require": {"name", "git", "rev", "subDir", "scope", "version", "path", "source"},
+}
+RISKY_OPTION = re.compile(r"^(weak\.)?(debug|compiler|interpreter)\.")
 
 ITEMS = {
     1: "Specification public, approved by a separate reviewer, and pinned",
@@ -105,8 +136,9 @@ def load_bar(root):
         raise ProjectError(f"bar.toml does not parse: {e}")
     shape = [
         ("project", dict), ("spec", dict), ("tests", dict),
-        ("project.spec_authors", list), ("spec.files", list), ("spec.approval", list),
-        ("trusted", list),
+        ("project.spec_authors", list), ("project.entry_points", list), ("spec.files", list),
+        ("spec.code", list), ("spec.approval", list), ("tests.files", list), ("trusted", list),
+        ("ci", dict),
     ]
     for key, kind in shape:
         node = bar
@@ -145,7 +177,7 @@ def module_path(module):
 def sections(markdown):
     """Map each heading's text to the text under it, up to the next
     heading of the same or a higher level. Headings in code fences are
-    ignored."""
+    ignored. Repeated headings keep all their text, joined in order."""
     found, stack, fence = {}, [], False
     for line in markdown.split("\n"):
         if line.lstrip().startswith("```"):
@@ -156,50 +188,51 @@ def sections(markdown):
             while stack and stack[-1][0] >= level:
                 stack.pop()
             body = []
-            found.setdefault(m.group(2), body)
+            found.setdefault(m.group(2), []).append(body)
             stack.append((level, body))
             for _, outer in stack[:-1]:
                 outer.append(line)
             continue
         for _, body in stack:
             body.append(line)
-    return {k: "\n".join(v).strip() for k, v in found.items()}
+    return {k: "\n\n".join("\n".join(b).strip() for b in bodies).strip()
+            for k, bodies in found.items()}
 
 
 def find_section(secs, title):
-    """The section whose heading starts with `title`, ignoring case."""
-    for heading, body in secs.items():
-        if heading.lower().startswith(title.lower()):
-            return body
-    return None
+    """The text of every section whose heading starts with `title`,
+    ignoring case, or None when there is none."""
+    bodies = [body for heading, body in secs.items() if heading.lower().startswith(title.lower())]
+    return "\n\n".join(bodies) if bodies else None
+
+
+def reviewed_files(bar):
+    """Every file the approval covers, in a fixed order: the spec files,
+    comparator.json, the entry points, the test files, and the page."""
+    files = list(bar.get("spec", {}).get("files", []))
+    files.append("comparator.json")
+    files += bar.get("project", {}).get("entry_points", [])
+    files += bar.get("tests", {}).get("files", [])
+    files.append(bar.get("project", {}).get("page", "README.md"))
+    return list(dict.fromkeys(files))
 
 
 def spec_hash(root, bar, read=None):
-    """The hash a reviewer approves: the spec files, and the page
-    sections that state what is proved, what is not, and what to trust.
-    `read` maps a path in the project to its text; by default it reads
-    the working tree."""
+    """The hash a reviewer approves: the spec files, comparator.json, the
+    entry points people run, the test files, the whole public page (a
+    claim anywhere on it is a public claim), and the list of code under
+    proof. `read` maps a path in the project to its text; by default it
+    reads the working tree."""
     read = read or (lambda rel: read_text(root / rel))
-    files = bar.get("spec", {}).get("files", [])
-    page = bar.get("project", {}).get("page", "README.md")
     h = hashlib.sha256()
     covered = []
-    for rel in files:
+    for rel in reviewed_files(bar):
         data = read(rel).replace("\r\n", "\n").encode("utf-8")
         h.update(f"file {rel}\n{hashlib.sha256(data).hexdigest()}\n".encode())
         covered.append(rel)
-    secs = sections(read(page).replace("\r\n", "\n"))
-    for title in APPROVED_SECTIONS:
-        # Every section whose heading starts with the title, so a second
-        # "What is proved" further down cannot add unreviewed claims.
-        matching = [(head, body) for head, body in secs.items()
-                    if head.lower().startswith(title.lower())]
-        if not matching:
-            raise ProjectError(f"{page} has no section '{title}'")
-        for head, body in matching:
-            body = "\n".join(line.rstrip() for line in body.split("\n"))
-            h.update(f"section {head}\n{hashlib.sha256(body.encode()).hexdigest()}\n".encode())
-            covered.append(f"{page}: {head}")
+    code = sorted(str(c) for c in bar.get("spec", {}).get("code", []))
+    h.update(("code " + " ".join(code) + "\n").encode())
+    covered.append("bar.toml: [spec] code = " + ", ".join(code))
     return h.hexdigest(), covered
 
 
@@ -237,9 +270,9 @@ def strip_lean(src):
         if src[i] == '"':
             i += 1
             while i < n and src[i] != '"':
-                if src[i] == "\n":
-                    out.append("\n")
-                i += 2 if src[i] == "\\" else 1
+                step = 2 if src[i] == "\\" else 1
+                out.append("\n" * src.count("\n", i, i + step))
+                i += step
             out.append('""')
             i += 1
             continue
@@ -255,15 +288,154 @@ def strip_lean(src):
 
 
 def lean_files(root):
-    """Project Lean sources: every `.lean` file outside hidden folders
-    (`.lake`, `.git`, a checkout of this tool) and outside build output."""
+    """Project Lean sources: every `.lean` file except those under
+    `.lake` (build output and dependencies) and `.git`."""
     for path in sorted(root.rglob("*.lean")):
         rel = path.relative_to(root)
-        if any(part.startswith(".") for part in rel.parts):
-            continue
-        if rel.parts[0] in ("build", "lake-packages"):
+        if any(part in (".lake", ".git") for part in rel.parts):
             continue
         yield rel
+
+
+def lakefile_problems(root, trusted):
+    """What in the Lake configuration could change the program."""
+    if (root / "lakefile.lean").is_file():
+        return ["lakefile.lean runs Lean code to configure the build; use lakefile.toml"]
+    path = root / "lakefile.toml"
+    if not path.is_file():
+        return ["no lakefile.toml"]
+    try:
+        cfg = tomllib.loads(read_text(path))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+        return [f"lakefile.toml does not parse: {e}"]
+    problems = []
+
+    def keys(table, kind, where):
+        for key, value in table.items():
+            if key not in LAKE_KEYS[kind] and ("lakefile.toml", key) not in trusted:
+                problems.append(f"{where} sets `{key}`")
+            if key == "leanOptions" and isinstance(value, dict):
+                problems.extend(f"{where} sets the option `{o}`" for o in value
+                                if RISKY_OPTION.match(o) and ("lakefile.toml", o) not in trusted)
+            if key == "srcDir" and isinstance(value, str):
+                p = Path(value)
+                if p.is_absolute() or ".." in p.parts:
+                    problems.append(f"{where} has a srcDir outside the project: {value}")
+
+    keys(cfg, "package", "lakefile.toml")
+    for kind in ("lean_lib", "lean_exe", "require"):
+        for i, table in enumerate(cfg.get(kind, [])):
+            if isinstance(table, dict):
+                keys(table, kind, f"lakefile.toml [[{kind}]] {table.get('name', i)}")
+    return problems
+
+
+DEPS_SCRIPT = r"""
+import Lean
+import {challenge}
+
+open Lean
+
+def walk (thms specMods projMods code : List Name) : CoreM Unit := do
+  let env ← getEnv
+  let modOf (c : Name) : Option Name :=
+    (env.getModuleIdxFor? c).map fun i => env.header.moduleNames[i.toNat]!
+  for thm in thms do
+    let some ci := env.find? thm | IO.println s!"{{thm}}\tmissing\t{{thm}}\t-"
+    let mut seen : NameSet := {{}}
+    let mut todo := ci.type.getUsedConstants.toList
+    while !todo.isEmpty do
+      let c := todo.head!
+      todo := todo.tail!
+      if seen.contains c then continue
+      seen := seen.insert c
+      let some m := modOf c | continue
+      if code.contains c then
+        IO.println s!"{{thm}}\tcode\t{{c}}\t{{m}}"
+      else if specMods.contains m then
+        if let some info := env.find? c then
+          todo := todo ++ info.type.getUsedConstants.toList
+          if let some v := info.value? then
+            todo := todo ++ v.getUsedConstants.toList
+          if let .inductInfo v := info then
+            todo := todo ++ v.ctors
+      else if projMods.contains m then
+        IO.println s!"{{thm}}\tother\t{{c}}\t{{m}}"
+
+def declared (challenge : Name) : CoreM Unit := do
+  let env ← getEnv
+  for (n, ci) in env.constants.toList do
+    if let .thmInfo _ := ci then
+      if !n.isInternalDetail then
+        if let some i := env.getModuleIdxFor? n then
+          if env.header.moduleNames[i.toNat]! == challenge then
+            IO.println s!"{{n}}\tdeclared\t{{n}}\t{{challenge}}"
+
+#eval walk {thms} {spec} {proj} {code}
+#eval declared `{challenge}
+"""
+
+
+def lean_names(names):
+    return "[" + ", ".join("`" + n for n in names) + "]"
+
+
+def statement_dependencies(root, bar, cmp_cfg):
+    """Run DEPS_SCRIPT in the built project, inside a sandbox, and return
+    (problems, code_seen). A problem is a project constant that an
+    approved statement depends on but that neither the spec files fix
+    nor the code-under-proof list names."""
+    code = [str(c) for c in bar.get("spec", {}).get("code", [])]
+    thms = cmp_cfg["theorem_names"]
+    modules = [r.with_suffix("").as_posix().replace("/", ".") for r in lean_files(root)]
+    spec_files = set(bar.get("spec", {}).get("files", []))
+    spec_mods = [m for r, m in zip(lean_files(root), modules) if r.as_posix() in spec_files]
+    script = DEPS_SCRIPT.format(challenge=cmp_cfg["challenge_module"], thms=lean_names(thms),
+                                spec=lean_names(spec_mods), proj=lean_names(modules),
+                                code=lean_names(code))
+    # The project's compiled files are loaded here, outside the sandbox
+    # `lake comparator` uses, so give this its own: no network, nothing
+    # writable but a fresh /tmp, and the project read-only.
+    cmd = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp",
+           "--ro-bind", str(root), str(root), "--unshare-all", "--die-with-parent",
+           "--chdir", str(root), "lake", "env", "lean", "--stdin"]
+    run = subprocess.run(cmd, input=script, capture_output=True, text=True, timeout=STEP_TIMEOUT)
+    if run.returncode != 0:
+        tail = " / ".join(l.strip() for l in (run.stdout + run.stderr).strip().split("\n")[-3:])
+        return [f"could not walk the statements (run `lake build` first): {tail}"], {}
+    problems, seen, declared = [], {t: [] for t in thms}, set()
+    for line in run.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 4:
+            continue
+        thm, kind, const, mod = parts
+        if kind == "code":
+            seen.setdefault(thm, []).append(const)
+        elif kind == "other":
+            problems.append(f"{thm} depends on {const} ({mod}), which is neither in the spec files "
+                            "nor listed as code under proof")
+        elif kind == "missing":
+            problems.append(f"{thm} is not in the challenge module")
+        elif kind == "declared":
+            declared.add(thm)
+    extra = sorted(declared - set(thms))
+    if extra:
+        problems.append("comparator.json does not name these theorems of the challenge file: "
+                        + ", ".join(extra))
+    problems += [f"{t} mentions no code under proof, so it says nothing about the library"
+                 for t, cs in seen.items() if not cs and not any(t in p for p in problems)]
+    return problems, seen
+
+
+def dependencies(root):
+    """Names of the packages lake-manifest.json pins: code that is built
+    into the project but not scanned, so the page must name it."""
+    path = root / "lake-manifest.json"
+    try:
+        manifest = json.loads(read_text(path))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return []
+    return [p.get("name") for p in manifest.get("packages", []) if isinstance(p, dict) and p.get("name")]
 
 
 def git_spec_authors(root, files):
@@ -304,7 +476,48 @@ class GitHub:
         return body.decode("utf-8") if raw else json.loads(body)
 
     def reviews(self, owner, repo, number):
-        return self.get(f"/repos/{owner}/{repo}/pulls/{number}/reviews?per_page=100")
+        found, page = [], 1
+        while True:
+            batch = self.get(f"/repos/{owner}/{repo}/pulls/{number}/reviews?per_page=100&page={page}")
+            found += batch
+            if len(batch) < 100:
+                return found
+            page += 1
+
+    def commit_logins(self, owner, repo, path):
+        """GitHub logins of the authors and committers of every commit to a path."""
+        logins, page = set(), 1
+        while True:
+            batch = self.get(f"/repos/{owner}/{repo}/commits?path={urllib.parse.quote(path)}"
+                             f"&per_page=100&page={page}")
+            for c in batch:
+                for who in ("author", "committer"):
+                    login = (c.get(who) or {}).get("login")
+                    if login:
+                        logins.add(login.lower())
+            if len(batch) < 100:
+                return logins
+            page += 1
+
+    def required_checks(self, full_name):
+        """The default branch and the status checks it requires, from
+        both branch protection and rulesets."""
+        branch = self.get(f"/repos/{full_name}")["default_branch"]
+        found = set()
+        info = self.get(f"/repos/{full_name}/branches/{urllib.parse.quote(branch)}")
+        req = ((info.get("protection") or {}).get("required_status_checks") or {})
+        found.update(req.get("contexts") or [])
+        found.update(c.get("context") for c in req.get("checks") or [] if c.get("context"))
+        for rule in self.get(f"/repos/{full_name}/rules/branches/{urllib.parse.quote(branch)}"):
+            if rule.get("type") == "required_status_checks":
+                found.update(c.get("context") for c in
+                             (rule.get("parameters") or {}).get("required_status_checks", []) if c.get("context"))
+        return branch, found
+
+    def parent(self, full_name):
+        """The repo a fork was made from, or None."""
+        info = self.get(f"/repos/{full_name}")
+        return (info.get("parent") or {}).get("full_name")
 
     def read(self, owner, repo, commit, path):
         quote = urllib.parse.quote
@@ -331,10 +544,10 @@ def check_spec(root, bar, rep, offline, github):
     spec = bar.get("spec", {})
     files = spec.get("files", [])
     authors = [a.lower() for a in bar.get("project", {}).get("spec_authors", [])]
-    missing = [f for f in files if not (root / f).is_file()]
+    missing = [f for f in reviewed_files(bar) if not (root / f).is_file()]
     if not files or missing or not authors:
-        rep.unmet(1, "bar.toml needs [spec] files that exist and [project] spec_authors"
-                  + (f"; missing: {', '.join(missing)}" if missing else ""))
+        rep.unmet(1, "bar.toml needs [spec] files and [project] spec_authors, and every reviewed "
+                  "file must exist" + (f"; missing: {', '.join(missing)}" if missing else ""))
         return
     try:
         current, _ = spec_hash(root, bar)
@@ -354,6 +567,11 @@ def check_spec(root, bar, rep, offline, github):
     if not reviewer or reviewer.lower() in authors:
         rep.add(1, "FAIL", f"the approving reviewer '{reviewer}' is listed as a spec author")
         return
+    named = reviewer_list()
+    if reviewer.lower() not in named:
+        rep.unmet(1, f"'{reviewer}' is not on the org's list of spec reviewers "
+                  f"(bar/reviewers.toml in Proven-Commons/mission, {len(named)} named)")
+        return
     committers = git_spec_authors(root, files) or []
     if any(re.search(rf"(^|[\x00+]){re.escape(reviewer.lower())}([\x00@]|$)", c.lower())
            for c in committers):
@@ -368,32 +586,53 @@ def check_spec(root, bar, rep, offline, github):
     if not m:
         rep.add(1, "FAIL", f"{said}; the record must be the URL of the pull request the reviewer approved")
         return
-    here = os.environ.get("GITHUB_REPOSITORY")
-    if here and f"{m.group(1)}/{m.group(2)}".lower() != here.lower():
-        rep.add(1, "FAIL", f"{said}; the pull request is not in {here}")
-        return
     owner, repo, number = m.groups()
     prefix = git_prefix(root)
     try:
+        here = os.environ.get("GITHUB_REPOSITORY")
+        if here and f"{owner}/{repo}".lower() != here.lower():
+            # CI in a contributor's fork runs with the fork's name.
+            if (github.parent(here) or "").lower() != f"{owner}/{repo}".lower():
+                rep.add(1, "FAIL", f"{said}; the pull request is not in {here} or the repo it was forked from")
+                return
+        for rel in files:
+            if reviewer.lower() in github.commit_logins(owner, repo, prefix + rel):
+                rep.add(1, "FAIL", f"{said}; GitHub shows {reviewer} as an author of a commit to {rel}")
+                return
         reviews = github.reviews(owner, repo, number)
         mine = [r for r in reviews if r.get("state") == "APPROVED"
                 and str((r.get("user") or {}).get("login", "")).lower() == reviewer.lower()]
         if not mine:
-            rep.add(1, "FAIL", f"{said}; GitHub shows no approving review by {reviewer} on that pull request")
+            rep.unmet(1, f"{said}; GitHub shows no approving review by {reviewer} on that pull request yet")
             return
         # The review must be of this exact text: hash the spec as it was
         # at the commit the reviewer approved.
         for r in mine:
             commit = r.get("commit_id")
-            if commit:
-                at = spec_hash(root, bar, lambda rel: github.read(owner, repo, commit, prefix + rel))[0]
-                if at == current:
-                    rep.add(1, "PASS", f"{said}; confirmed on GitHub at commit {commit[:12]}")
-                    return
+            if not commit:
+                continue
+            at = spec_hash(root, bar, lambda rel: github.read(owner, repo, commit, prefix + rel))[0]
+            # The reviewed pull request must be the one that records this
+            # approval, so the review is of the spec, not of something else.
+            then = tomllib.loads(github.read(owner, repo, commit, prefix + "bar.toml"))
+            recorded = any(x.get("sha256") == current and str(x.get("reviewer", "")).lower() == reviewer.lower()
+                           for x in then.get("spec", {}).get("approval", []) if isinstance(x, dict))
+            if at == current and recorded:
+                rep.add(1, "PASS", f"{said}; confirmed on GitHub at commit {commit[:12]}")
+                return
     except Exception as e:  # network, HTTP or JSON error: say so, do not guess
-        rep.add(1, "FAIL", f"{said}; could not confirm it on GitHub: {e}")
+        rep.add(1, "SKIP", f"{said}; could not confirm it on GitHub: {e}")
         return
-    rep.add(1, "FAIL", f"{said}; the text {reviewer} approved on GitHub is not the text this hash covers")
+    rep.unmet(1, f"{said}; the text {reviewer} approved on GitHub is not the text this hash covers")
+
+
+def reviewer_list(path=None):
+    path = Path(path or os.environ.get("BAR_REVIEWERS") or REVIEWERS_FILE)
+    try:
+        data = tomllib.loads(read_text(path))
+    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError):
+        return set()
+    return {str(r.get("login", "")).lower() for r in data.get("reviewer", []) if isinstance(r, dict)}
 
 
 def backing(rep):
@@ -432,6 +671,8 @@ def check_proofs(root, bar, cmp_cfg, cmp_err, rep, no_lean):
         extra = set(cmp_cfg.get("permitted_axioms") or []) - STANDARD_AXIOMS
         if extra:
             problems.append(f"comparator.json permits non-standard axioms: {', '.join(sorted(extra))}")
+        if not bar.get("spec", {}).get("code"):
+            problems.append("bar.toml [spec] code names no code under proof")
         if cmp_cfg.get("challenge_module"):
             challenge = module_path(cmp_cfg["challenge_module"]).as_posix()
             if challenge not in bar.get("spec", {}).get("files", []):
@@ -450,19 +691,31 @@ def check_proofs(root, bar, cmp_cfg, cmp_err, rep, no_lean):
         return
     try:
         run = subprocess.run(["lake", "comparator", "--paranoid"], cwd=root,
-                             capture_output=True, text=True, timeout=4 * 3600)
+                             capture_output=True, text=True, timeout=STEP_TIMEOUT)
     except FileNotFoundError:
         rep.add(3, "FAIL", "`lake` is not on the PATH")
         return
     except subprocess.TimeoutExpired:
-        rep.add(3, "FAIL", f"`{RECHECK_COMMAND}` did not finish in 4 hours")
+        rep.add(3, "FAIL", f"`{RECHECK_COMMAND}` did not finish in {STEP_TIMEOUT // 60} minutes")
         return
     tail = " / ".join(line.strip() for line in (run.stdout + run.stderr).strip().split("\n")[-3:])
-    if run.returncode == 0:
-        n = len(cmp_cfg["theorem_names"])
-        rep.add(3, "PASS", f"`{RECHECK_COMMAND}` accepts all {n} theorems under every bundled kernel")
-    else:
-        rep.add(3, "FAIL", f"`{RECHECK_COMMAND}` exited {run.returncode}: {tail}")
+    if run.returncode != 0:
+        only_sorry = "'sorryAx'" in (run.stdout + run.stderr) and "Illegal axiom" in (run.stdout + run.stderr) \
+            and not re.search(r"Illegal axiom detected: '(?!sorryAx')", run.stdout + run.stderr)
+        if only_sorry and rep.in_progress:
+            rep.add(3, "OPEN", f"`{RECHECK_COMMAND}`: a proof is still `sorry`, which an in-progress "
+                    "project may have")
+        else:
+            rep.add(3, "FAIL", f"`{RECHECK_COMMAND}` exited {run.returncode}: {tail}")
+        return
+    problems, _ = statement_dependencies(root, bar, cmp_cfg)
+    if problems:
+        rep.add(3, "FAIL", f"`{RECHECK_COMMAND}` passes, but " + "; ".join(problems))
+        return
+    n = len(cmp_cfg["theorem_names"])
+    rep.add(3, "PASS", f"`{RECHECK_COMMAND}` accepts all {n} theorems under every bundled kernel, "
+            "and each statement depends only on the spec files, the code under proof, and code "
+            "outside the project")
 
 
 def check_source(root, bar, cmp_cfg, rep):
@@ -470,7 +723,7 @@ def check_source(root, bar, cmp_cfg, rep):
     if cmp_cfg and cmp_cfg.get("challenge_module"):
         challenge = module_path(cmp_cfg["challenge_module"])
     trusted = {(t.get("file"), t.get("feature")) for t in bar.get("trusted", [])}
-    hits, allowed, notation, count = [], [], 0, 0
+    hits, allowed, instances, count = [], [], [], 0
     for rel in lean_files(root):
         count += 1
         text = strip_lean(read_text(root / rel))
@@ -481,47 +734,85 @@ def check_source(root, bar, cmp_cfg, rep):
                 line = text.count("\n", 0, m.start()) + 1
                 where = f"{rel.as_posix()}:{line} {name}"
                 (allowed if (rel.as_posix(), name) in trusted else hits).append(where)
-        notation += len(NOTATION.findall(text))
+        if rel != challenge:
+            instances += [f"{rel.as_posix()}:{text.count(chr(10), 0, m.start()) + 1}"
+                          for m in INSTANCE.finditer(text)]
     if count == 0:
         rep.add(4, "FAIL", "no Lean files found")
         return
+    hits += [f"{p}" for p in lakefile_problems(root, trusted)]
     note = f"; {len(allowed)} listed as trusted in bar.toml" if allowed else ""
-    if notation:
-        note += f"; {notation} notation or macro declarations for the reviewer to read"
+    if instances:
+        note += (f"; instance declarations for the reviewer to read, since an instance can change "
+                 f"what a statement means: {', '.join(instances[:10])}"
+                 + (f", and {len(instances) - 10} more" if len(instances) > 10 else ""))
     if hits:
         shown = ", ".join(hits[:10]) + (f", and {len(hits) - 10} more" if len(hits) > 10 else "")
-        rep.add(4, "FAIL", f"forbidden features: {shown}{note}")
+        only_sorry = all(h.endswith((" sorry", " admit")) for h in hits)
+        if only_sorry and rep.in_progress:
+            rep.add(4, "OPEN", f"unfinished proofs, which an in-progress project may have: {shown}{note}")
+        else:
+            rep.add(4, "FAIL", f"forbidden features: {shown}{note}")
     else:
-        rep.add(4, "PASS", f"{count} Lean files, none uses a forbidden feature{note}; that entry "
-                f"points call the proved functions {backing(rep)}")
+        rep.add(4, "PASS", f"{count} Lean files, none uses a forbidden feature{note}; that the "
+                f"entry points call the proved functions {backing(rep)}")
+
+
+def record_fields(text):
+    fields = {}
+    for key in ("Oracle", "Seed", "Inputs", "Failures"):
+        m = re.search(rf"(?m)^\s*[-*]\s*{key}:\s*(\S.*?)\s*$", text)
+        fields[key] = m.group(1) if m else None
+    return fields
+
+
+def committed_text(root, rel):
+    """The file as committed at HEAD: its text, False when git tracks no
+    such file, or None when this is not a git checkout."""
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-prefix"], cwd=root,
+                             capture_output=True, text=True, timeout=60)
+        if top.returncode != 0:
+            return None
+        out = subprocess.run(["git", "show", f"HEAD:{top.stdout.strip()}{rel}"], cwd=root,
+                             capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.stdout.replace("\r\n", "\n") if out.returncode == 0 else False
 
 
 def check_tests(root, bar, rep, run_tests=False):
     rel = bar.get("tests", {}).get("results", "tests/TEST-RESULTS.md")
     path = root / rel
     command = bar.get("tests", {}).get("command")
+    committed = committed_text(root, rel) if run_tests else None
     if run_tests:
         if not command:
             rep.unmet(5, "bar.toml gives no [tests] command to run")
             return
         try:
-            run = subprocess.run(command, shell=True, cwd=root, capture_output=True,
-                                 text=True, timeout=4 * 3600)
+                run = subprocess.run(command, shell=True, cwd=root, capture_output=True,
+                                 text=True, timeout=STEP_TIMEOUT)
         except subprocess.TimeoutExpired:
-            rep.unmet(5, f"`{command}` did not finish in 4 hours")
+            rep.add(5, "FAIL", f"`{command}` did not finish in {STEP_TIMEOUT // 60} minutes")
             return
         if run.returncode != 0:
             tail = " / ".join(l.strip() for l in (run.stdout + run.stderr).strip().split("\n")[-3:])
-            rep.unmet(5, f"`{command}` exited {run.returncode}: {tail}")
+            rep.add(5, "FAIL", f"`{command}` exited {run.returncode}: {tail}")
             return
     if not path.is_file():
         rep.unmet(5, f"no test record at {rel}")
         return
-    text = read_text(path)
-    fields = {}
-    for key in ("Oracle", "Seed", "Inputs", "Failures"):
-        m = re.search(rf"(?m)^\s*[-*]\s*{key}:\s*(\S.*?)\s*$", text)
-        fields[key] = m.group(1) if m else None
+    fields = record_fields(read_text(path))
+    if run_tests and committed is not None:
+        if committed is False:
+            rep.unmet(5, f"{rel} is not committed; the record must be in the repo, not only made in CI")
+            return
+        old = record_fields(committed)
+        stale = [k for k in ("Seed", "Inputs", "Failures") if old.get(k) != fields.get(k)]
+        if stale:
+            rep.unmet(5, f"the committed {rel} differs from a fresh run in: {', '.join(stale)}")
+            return
     missing = [k for k, v in fields.items() if v is None]
     if missing:
         rep.unmet(5, f"{rel} does not record: {', '.join(missing)}")
@@ -531,18 +822,18 @@ def check_tests(root, bar, rep, run_tests=False):
     if not inputs.isdigit() or int(inputs) == 0:
         rep.unmet(5, f"{rel}: Inputs must be a positive count, not '{fields['Inputs']}'")
     elif failures != "0":
-        rep.unmet(5, f"{rel} records {fields['Failures']} failures")
+        rep.add(5, "FAIL", f"{rel} records {fields['Failures']} failures")
     else:
         rep.add(5, "PASS", f"{int(inputs):,} inputs, seed {fields['Seed']}, 0 failures, "
                 f"oracle {fields['Oracle']}")
 
 
-def check_page(page_secs, page, bar, rep):
+def check_page(root, page_secs, page, bar, rep, page_text=None):
     if page_secs is None:
         rep.unmet(6, f"no page at {page}")
         return
     problems = []
-    for title in APPROVED_SECTIONS + [RECHECK]:
+    for title in SECTIONS:
         if find_section(page_secs, title) is None:
             problems.append(f"no '{title}' section")
     trust = (find_section(page_secs, TRUST) or "").lower()
@@ -553,6 +844,18 @@ def check_page(page_secs, page, bar, rep):
         for t in bar.get("trusted", []):
             if t.get("file") and t["file"].lower() not in trust:
                 problems.append(f"'{TRUST}' does not name the trusted file {t['file']}")
+        for dep in dependencies(root):
+            if dep.lower() not in trust:
+                problems.append(f"'{TRUST}' does not name the dependency {dep}")
+    status = bar["project"]["status"]
+    line = re.search(r"(?im)^[ \t>*_]*status[*_]*:[*_ \t]*(.+)$", page_text or "")
+    said = line.group(1).lower() if line else None
+    if said is None:
+        problems.append("no `Status:` line on the page")
+    elif status == "in-progress" and ("in progress" not in said or re.search(r"(?<!not )verified", said)):
+        problems.append(f"the page's status line does not say in progress: '{line.group(1).strip()}'")
+    elif status == "verified" and ("verified" not in said or "not" in said):
+        problems.append(f"the page's status line does not say verified: '{line.group(1).strip()}'")
     recheck = find_section(page_secs, RECHECK) or ""
     if recheck and RECHECK_COMMAND not in recheck:
         problems.append(f"'{RECHECK}' does not give `{RECHECK_COMMAND}`")
@@ -565,16 +868,59 @@ def check_page(page_secs, page, bar, rep):
         rep.add(6, "PASS", f"all sections present; that they are accurate {backing(rep)}")
 
 
-def check_ci(root, rep):
-    flows = root / ".github" / "workflows"
-    files = sorted(flows.glob("*.y*ml")) if flows.is_dir() else []
-    for f in files:
-        text = read_text(f)
-        if "verified-bar.yml" in text or RECHECK_COMMAND in text:
-            rep.add(7, "PASS", f"{f.relative_to(root).as_posix()} runs the bar check; that the default "
-                    "branch requires it is a repo setting this script cannot see")
-            return
-    rep.unmet(7, "no workflow in .github/workflows runs the bar check")
+CALLS_BAR = re.compile(r"(?m)^[ \t]*(-[ \t]+)?uses:[ \t]*['\"]?"
+                       r"(Proven-Commons/mission/|\./)\.github/workflows/verified-bar\.yml\b")
+
+
+def github_repo(root):
+    """owner/name of the repo on GitHub: from CI, or from the origin remote."""
+    if os.environ.get("GITHUB_REPOSITORY"):
+        return os.environ["GITHUB_REPOSITORY"]
+    try:
+        out = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root,
+                             capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    m = re.search(r"github\.com[:/]([^/]+/[^/]+?)(\.git)?/?$", out.stdout.strip())
+    return m.group(1) if out.returncode == 0 and m else None
+
+
+def check_ci(root, bar, rep, offline, github):
+    """A workflow at the top of the git repo, where GitHub runs them,
+    that calls the verified-bar workflow, and a default branch that
+    requires its check."""
+    top = root
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=root,
+                             capture_output=True, text=True, timeout=60)
+        if out.returncode == 0:
+            top = Path(out.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    flows = top / ".github" / "workflows"
+    calling = [f for f in (sorted(flows.glob("*.y*ml")) if flows.is_dir() else [])
+               if CALLS_BAR.search(read_text(f))]
+    if not calling:
+        rep.unmet(7, "no workflow in .github/workflows at the top of the repo calls the verified-bar workflow")
+        return
+    where = calling[0].relative_to(top).as_posix()
+    wanted = bar.get("ci", {}).get("required_check", "bar / bar")
+    repo = github_repo(root)
+    if offline or not repo:
+        rep.add(7, "SKIP", f"{where} calls the verified-bar workflow; the branch rule was not read "
+                + ("(--offline)" if offline else "(no GitHub repo found)"))
+        return
+    try:
+        branch, checks = github.required_checks(repo)
+    except Exception as e:  # network, HTTP or JSON error: say so, do not guess
+        rep.add(7, "SKIP", f"{where} calls the verified-bar workflow; could not read the branch rule: {e}")
+        return
+    if wanted in checks:
+        rep.add(7, "PASS", f"{where} calls the verified-bar workflow, and {repo}'s default branch "
+                f"{branch} requires the `{wanted}` check")
+    else:
+        rep.unmet(7, f"{where} calls the verified-bar workflow, but {repo}'s default branch {branch} "
+                  f"does not require the `{wanted}` check")
 
 
 def check(root, no_lean=False, offline=False, github=None, run_tests=False):
@@ -588,8 +934,9 @@ def check(root, no_lean=False, offline=False, github=None, run_tests=False):
     check_proofs(root, bar, cmp_cfg, cmp_err, rep, no_lean)
     check_source(root, bar, cmp_cfg, rep)
     check_tests(root, bar, rep, run_tests)
-    check_page(page_secs, page, bar, rep)
-    check_ci(root, rep)
+    check_page(root, page_secs, page, bar, rep,
+               read_text(root / page) if (root / page).is_file() else None)
+    check_ci(root, bar, rep, offline, github or GitHub())
     return bar, rep
 
 
@@ -599,6 +946,8 @@ def verdict(bar, rep):
     statuses = [r["status"] for r in rep.rows]
     if "FAIL" in statuses:
         return "Does not meet the verified bar."
+    if bar["project"]["status"] == "verified" and any(s != "PASS" for s in statuses):
+        return "Marked verified, but not every item passed in this run."
     if all(s == "PASS" for s in statuses):
         return "Meets the verified bar."
     if "OPEN" in statuses:
@@ -608,7 +957,7 @@ def verdict(bar, rep):
 
 def markdown(bar, rep, root):
     name = bar.get("project", {}).get("name", root.name)
-    lines = [f"## Verified bar: {name}", "", f"**{verdict(bar, rep)}**",
+    lines = [f"## Verified bar {BAR_VERSION}: {name}", "", f"**{verdict(bar, rep)}**",
              f"Project status in bar.toml: `{bar['project']['status']}`.", "",
              "| # | Item | Status | Detail |", "|---|------|--------|--------|"]
     for r in rep.rows:
@@ -648,7 +997,12 @@ def main(argv=None):
         Path(args.json).write_text(json.dumps(
             {"verdict": verdict(bar, rep), "status": bar["project"]["status"], "items": rep.rows},
             indent=2) + "\n")
-    return 1 if any(r["status"] == "FAIL" for r in rep.rows) else 0
+    if any(r["status"] == "FAIL" for r in rep.rows):
+        return 1
+    # A project that calls itself verified must pass every item, in every run.
+    if bar["project"]["status"] == "verified" and any(r["status"] != "PASS" for r in rep.rows):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

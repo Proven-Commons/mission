@@ -2,8 +2,9 @@
 """Differential tests: the Lean `clamp` executable against the oracle.
 
 The oracle is Python's own `max(lo, min(hi, x))`, the original this
-template stands in for. Inputs are edge cases plus random triples from
-a recorded seed. Run from anywhere:
+template stands in for. Inputs are edge cases, random triples from a
+recorded seed, and mutations of those triples that move `x` to just
+inside and just outside the range. Run from anywhere:
 
     python3 tests/run_tests.py [--seed N] [--count N]
 
@@ -28,13 +29,21 @@ def oracle(lo, hi, x):
 
 
 def inputs(seed, count):
+    """Edge cases, then random triples, each followed by its mutations.
+    Returns the cases and how many of them are mutations."""
     edges = [0, 1, 2, 2**8 - 1, 2**32, 2**64 - 1, 2**64, 2**100]
     cases = [(lo, hi, x) for lo in edges for hi in edges for x in edges]
     rng = random.Random(seed)
+    mutated = 0
     while len(cases) < count:
         bits = rng.choice([4, 16, 64, 128])
-        cases.append(tuple(rng.getrandbits(bits) for _ in range(3)))
-    return cases[:count]
+        lo, hi, x = (rng.getrandbits(bits) for _ in range(3))
+        cases.append((lo, hi, x))
+        for m in (lo - 1, lo, hi, hi + 1):
+            if m >= 0 and len(cases) < count:
+                cases.append((lo, hi, m))
+                mutated += 1
+    return cases[:count], mutated
 
 
 def main():
@@ -46,7 +55,7 @@ def main():
     if not EXE.exists():
         subprocess.run(["lake", "build", "clamp"], cwd=ROOT, check=True)
 
-    cases = inputs(args.seed, args.count)
+    cases, mutated = inputs(args.seed, args.count)
     stdin = "".join(f"{lo} {hi} {x}\n" for lo, hi, x in cases)
     out = subprocess.run([str(EXE)], input=stdin, capture_output=True,
                          text=True, check=True).stdout.split("\n")
@@ -66,6 +75,7 @@ def main():
         f"- Lean: {lean}",
         f"- Seed: {args.seed}",
         f"- Inputs: {len(cases)}",
+        f"- Mutated: {mutated} of the inputs move x to just inside or outside the range",
         f"- Failures: {len(failures)}",
         "",
     ]
