@@ -57,12 +57,16 @@ def probes(work):
                     pax={"path": "../../etc/cron.d/x"}))
     yield ("pax non-ASCII name",
            one_file(tarfile.PAX_FORMAT, "café/notes.txt"))
-    # ustar: name field holds "file.txt", prefix field holds "p"*30 + "/" + ...
+    # ustar split: prefix field holds "p"*30, name field holds "q"*90 + "/file.txt".
     split = one_file(tarfile.USTAR_FORMAT, "p" * 30 + "/" + "q" * 90 + "/file.txt")
-    yield ("invalid UTF-8 in the prefix field, valid name",
+    yield ("split name, invalid UTF-8 in the prefix field only",
            patch_header(split, 345, b"\xff"))
-    yield ("invalid UTF-8 in the name field, valid prefix",
+    yield ("split name, invalid UTF-8 in the name field only",
            patch_header(split, 0, b"\xff"))
+    yield ("split name, invalid UTF-8 in both fields",
+           patch_header(patch_header(split, 0, b"\xff"), 345, b"\xff"))
+    yield ("short name (no prefix), invalid UTF-8",
+           patch_header(one_file(tarfile.USTAR_FORMAT, "short.txt"), 0, b"\xff"))
     yield ("contiguous file, typeflag 7",
            one_file(tarfile.USTAR_FORMAT, "contig.bin", typ=tarfile.CONTTYPE))
     gnu_tar = shutil.which("tar")

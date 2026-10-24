@@ -1,18 +1,27 @@
 /-
-  A proposed fix for finding F1 of the 2026-10-24 bar audit: a
-  statement that does imply containment, proved in core Lean.
+  A proposed fix for finding F1 of the 2026-10-24 bar audit: statements
+  that do imply containment, proved in core Lean.
 
   Two changes against Proven-Commons/tar at 7517a86:
 
-  - The cleaner also rejects a component that holds `/` or NUL. The
-    current code can never produce one (components come from
-    `splitOn "/"`, and header names stop at the first NUL), so this
-    changes no output. It makes the property easy to prove instead of
-    resting on an unproved fact about `String.splitOn`.
-  - The theorem says every emitted relative component is a plain name,
-    and, as a corollary, that resolving the joined path the POSIX way
-    (`..` pops, `.` and empty stay) gives the resolved destination
-    followed by the relative path. Nothing can climb out.
+  - The cleaner also rejects a component that holds `/` or NUL. On any
+    archive that `parseArchive` reads, this changes no output: header names
+    stop at the first NUL, and components come from `splitOn "/"`. The
+    `#eval` at the end checks every name in the pilot's tests. The check
+    makes the property easy to prove instead of resting on an unproved
+    fact about `String.splitOn`.
+  - Three theorems. `extractAll_contained`: every emitted path is the
+    destination followed by a non-empty list of plain names.
+    `extractAll_joined`: the path string the command-line tool builds, by
+    joining the components with `/`, splits back into exactly those
+    components. `extractAll_resolves_inside`: resolving that string the way
+    POSIX resolves a relative path, without symlinks, gives the resolved
+    destination followed by the plain names, so nothing climbs out. The
+    last two assume the destination's own components hold no `/`, which
+    is true of the destination the tool builds with `splitOn "/"`.
+
+  Still outside the proof: the filesystem (symlinks already on disk,
+  races between check and write) and whatever destination a caller passes.
 
   Run inside a checkout of Proven-Commons/tar at 7517a86:
 
@@ -28,50 +37,13 @@ namespace Contained
 
 /-- A component that names one entry inside its directory. -/
 def PlainName (c : String) : Prop :=
-  c ≠ "" ∧ c ≠ "." ∧ c ≠ ".." ∧ c.contains '/' = false ∧
-    c.contains (Char.ofNat 0) = false
-
-/-- Lexical path resolution, POSIX style: `..` drops the last
-    component, empty and `.` components stay where they are. -/
-def resolve : List String → List String → List String
-  | acc, [] => acc
-  | acc, c :: cs =>
-    if c = ".." then resolve acc.dropLast cs
-    else if c = "" ∨ c = "." then resolve acc cs
-    else resolve (acc ++ [c]) cs
-
-theorem resolve_append : ∀ (xs ys acc : List String),
-    resolve acc (xs ++ ys) = resolve (resolve acc xs) ys := by
-  intro xs
-  induction xs with
-  | nil => intro ys acc; simp [resolve]
-  | cons c cs ih =>
-    intro ys acc
-    simp only [List.cons_append, resolve]
-    split
-    · exact ih ys _
-    · split
-      · exact ih ys _
-      · exact ih ys _
-
-theorem resolve_plain : ∀ (rel acc : List String), (∀ c ∈ rel, PlainName c) →
-    resolve acc rel = acc ++ rel := by
-  intro rel
-  induction rel with
-  | nil => intro acc _; simp [resolve]
-  | cons c cs ih =>
-    intro acc h
-    have ⟨h1, h2, h3, _, _⟩ := h c (by simp)
-    have hcs : ∀ x ∈ cs, PlainName x := fun x hx => h x (by simp [hx])
-    simp only [resolve, h3, ite_false, h1, h2, or_self]
-    rw [ih _ hcs]
-    simp
+  c ≠ "" ∧ c ≠ "." ∧ c ≠ ".." ∧ '/' ∉ c.toList ∧ Char.ofNat 0 ∉ c.toList
 
 /-- The cleaner, also rejecting a component that holds `/` or NUL. -/
 def cleanComponents : List String → Option (List String)
   | [] => some []
   | c :: cs =>
-    if c = ".." ∨ c.contains '/' ∨ c.contains (Char.ofNat 0) then none
+    if c = ".." ∨ '/' ∈ c.toList ∨ Char.ofNat 0 ∈ c.toList then none
     else (cleanComponents cs).map (fun rest =>
       if c = "" ∨ c = "." then rest else c :: rest)
 
@@ -107,9 +79,7 @@ theorem cleanComponents_plain : ∀ (cs out : List String),
           simp only [List.mem_cons] at hx
           rcases hx with rfl | hx
           · simp only [not_or] at hbad hskip
-            refine ⟨hskip.1, hskip.2, hbad.1, ?_, ?_⟩
-            · simpa using hbad.2.1
-            · simpa using hbad.2.2
+            exact ⟨hskip.1, hskip.2, hbad.1, hbad.2.1, hbad.2.2⟩
           · exact ih' x hx
 
 /-- The gate, unchanged except for the cleaner it calls. -/
@@ -155,22 +125,104 @@ theorem extractAll_contained : ∀ (dest : List String) (entries : List RawEntry
         · simp at hg
   · simp at hfe
 
-/-- Containment: resolving an emitted path gives the resolved
-    destination followed by the relative path. -/
+/-- The components a system sees in a path string: the parts between `/`. -/
+def pathComponents (s : String) : List String :=
+  (s.split '/').toList.map (·.copy)
+
+theorem pathComponents_join (l : List String) (hl : ∀ s ∈ l, '/' ∉ s.toList)
+    (hne : l ≠ []) : pathComponents (String.intercalate "/" l) = l := by
+  have h := String.toList_split_intercalate (c := '/') hl
+  simp only [hne, ite_false] at h
+  exact h
+
+/-- The path string the command-line tool builds (`Main.lean`, `runManifest`)
+    splits back into the destination followed by plain names. -/
+theorem extractAll_joined : ∀ (dest : List String) (entries : List RawEntry)
+    (path : List String) (bytes : ByteArray),
+    (∀ d ∈ dest, '/' ∉ d.toList) →
+    (path, bytes) ∈ extractAll dest entries →
+    ∃ rel, rel ≠ [] ∧ (∀ c ∈ rel, PlainName c) ∧
+      pathComponents (String.intercalate "/" path) = dest ++ rel := by
+  intro dest entries path bytes hdest h
+  obtain ⟨rel, hne, hpath, hplain⟩ := extractAll_contained dest entries path bytes h
+  refine ⟨rel, hne, hplain, ?_⟩
+  subst hpath
+  apply pathComponents_join
+  · intro s hs
+    rcases List.mem_append.mp hs with hs | hs
+    · exact hdest s hs
+    · exact (hplain s hs).2.2.2.1
+  · simp [hne]
+
+/-- Resolve the components of a relative path as POSIX does, without
+    symlinks: `..` drops the last component, or is kept when nothing is
+    left to drop or the last is itself `..`; empty and `.` change nothing. -/
+def resolve : List String → List String → List String
+  | acc, [] => acc
+  | acc, c :: cs =>
+    if c = "" ∨ c = "." then resolve acc cs
+    else if c = ".." then
+      if acc = [] ∨ acc.getLast? = some ".." then resolve (acc ++ [".."]) cs
+      else resolve acc.dropLast cs
+    else resolve (acc ++ [c]) cs
+
+theorem resolve_append : ∀ (xs ys acc : List String),
+    resolve acc (xs ++ ys) = resolve (resolve acc xs) ys := by
+  intro xs
+  induction xs with
+  | nil => intro ys acc; simp [resolve]
+  | cons c cs ih =>
+    intro ys acc
+    simp only [List.cons_append, resolve]
+    split
+    · exact ih ys _
+    · split
+      · split
+        · exact ih ys _
+        · exact ih ys _
+      · exact ih ys _
+
+theorem resolve_plain : ∀ (rel acc : List String), (∀ c ∈ rel, PlainName c) →
+    resolve acc rel = acc ++ rel := by
+  intro rel
+  induction rel with
+  | nil => intro acc _; simp [resolve]
+  | cons c cs ih =>
+    intro acc h
+    have ⟨h1, h2, h3, _, _⟩ := h c (by simp)
+    have hcs : ∀ x ∈ cs, PlainName x := fun x hx => h x (by simp [hx])
+    simp only [resolve, h1, h2, h3, or_self, ite_false]
+    rw [ih _ hcs]
+    simp
+
+/-- Containment: the path string the tool builds, resolved as POSIX
+    resolves a relative path, is the resolved destination followed by
+    the plain names. No `..` in an archive can reach above it. -/
 theorem extractAll_resolves_inside : ∀ (dest : List String)
     (entries : List RawEntry) (path : List String) (bytes : ByteArray),
+    (∀ d ∈ dest, '/' ∉ d.toList) →
     (path, bytes) ∈ extractAll dest entries →
-    ∃ rel, rel ≠ [] ∧ resolve [] path = resolve [] dest ++ rel := by
-  intro dest entries path bytes h
-  obtain ⟨rel, hne, hpath, hplain⟩ := extractAll_contained dest entries path bytes h
-  exact ⟨rel, hne, by rw [hpath, resolve_append, resolve_plain rel _ hplain]⟩
+    ∃ rel, rel ≠ [] ∧ (∀ c ∈ rel, PlainName c) ∧
+      resolve [] (pathComponents (String.intercalate "/" path)) = resolve [] dest ++ rel := by
+  intro dest entries path bytes hdest h
+  obtain ⟨rel, hne, hplain, hjoin⟩ := extractAll_joined dest entries path bytes hdest h
+  exact ⟨rel, hne, hplain, by rw [hjoin, resolve_append, resolve_plain rel _ hplain]⟩
 
 end Contained
 
--- The new gate agrees with the old one on every name in the pilot's tests.
-#eval ["hello.txt", "dir/nested.bin", "../evil.txt", "a/../../evil2.txt",
-  "/abs.txt", "./dot.txt", "a//b.txt", "a/./c.txt", ".", "", "a/b/../c"].all
+-- The new gate agrees with the old one on every name in the pilot's
+-- tests (tests/run_tests.py, archive A and the create inputs).
+#eval ["hello.txt", "dir/nested.bin", "empty.txt", "big.bin", "dir", "../evil.txt",
+  "a/../../evil2.txt", "/abs.txt", "./dot.txt", "a//b.txt", "a/./c.txt", "link.txt",
+  String.ofList (List.replicate 50 'p') ++ "/" ++ String.ofList (List.replicate 70 'x') ++ ".txt",
+  "deep/d0/d1/d2/d3/d4/d5/d6/d7/leaf.txt", "x.txt", "sub/y.bin",
+  String.ofList (List.replicate 60 'q') ++ "/" ++ String.ofList (List.replicate 50 'z') ++ ".bin"].all
   (fun n => Contained.gate n == TarPilot.gate n)
+
+-- The statement tells a safe gate from a broken one. WeakStatement's
+-- `badGate` keeps "a/../../etc/passwd" as one component; joined under
+-- "out" and resolved, that path is ["etc", "passwd"], not inside "out".
+#eval Contained.resolve [] (Contained.pathComponents (String.intercalate "/" ["out", "a/../../etc/passwd"]))
 
 -- Expect only the standard axioms.
 #print axioms Contained.extractAll_contained
