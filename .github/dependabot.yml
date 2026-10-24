@@ -1,0 +1,11 @@
+# The Pages workflow pins each action to a commit. Dependabot proposes updates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - "*"

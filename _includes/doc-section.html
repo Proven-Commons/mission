@@ -1,0 +1,17 @@
+{%- comment -%}
+  Prints what sits under one heading of a rendered Markdown document, up to
+  the next heading. Prints nothing if the heading is not there, so the
+  caller can show a fallback.
+    include.html   the rendered document
+    include.id     the heading's id, as kramdown writes it
+    include.level  2 or 3
+{%- endcomment -%}
+{%- assign ds_open = '<h' | append: include.level | append: ' id="' | append: include.id | append: '">' -%}
+{%- if include.html contains ds_open -%}
+  {%- assign ds_close = '</h' | append: include.level | append: '>' -%}
+  {%- assign ds_after = include.html | split: ds_open | last -%}
+  {%- assign ds_title = ds_after | split: ds_close | first -%}
+  {%- assign ds_body = ds_after | remove_first: ds_title | remove_first: ds_close -%}
+  {%- assign ds_body = ds_body | split: '<h2' | first | split: '<h3' | first | split: '<h4' | first -%}
+  {{- ds_body | strip -}}
+{%- endif -%}

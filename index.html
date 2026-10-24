@@ -1,0 +1,339 @@
+---
+layout: default
+body_class: home
+---
+{%- comment -%}
+  The home page quotes the org's documents instead of restating them, so it
+  does not drift from them. It reads these parts at build time:
+
+    README.md          the opening paragraphs, and "First projects"
+    FOUNDING-BRIEF.md  "How a project moves through the factory",
+                       "The verified bar", "First wave", "The academy"
+
+  Only the headings and a few short lines are written here: the hero line,
+  the four "what a project ships" cards, the sponsorship note, and the
+  projects intro. Check them when either document changes.
+
+  When a part is not where this page expects it, or not in the shape it
+  expects, the page shows a link to the source instead of guessing, and the
+  build check fails and names the part (see _includes/missing.html). The
+  shapes it reads: in the brief, each section is a paragraph or two, one
+  flat list (no list inside a list), then only paragraphs; in the README,
+  the opening and First projects are paragraphs only.
+{%- endcomment -%}
+{%- capture readme_src -%}{% include_relative README.md %}{%- endcapture -%}
+{%- capture brief_src -%}{% include_relative FOUNDING-BRIEF.md %}{%- endcapture -%}
+{%- assign readme_html = readme_src | markdownify -%}
+{%- assign brief_html = brief_src | markdownify -%}
+{%- assign brief_url = '/brief/' | relative_url -%}
+{%- capture readme -%}{% include links.html html=readme_html dir="" self=site.repo_url %}{%- endcapture -%}
+{%- capture brief -%}{% include links.html html=brief_html dir="" self=brief_url %}{%- endcapture -%}
+{%- assign readme_url = site.repo_url | append: '#readme' -%}
+
+{%- comment -%}
+  The first two paragraphs after the title, skipping badges and quotes such
+  as a GitHub note.
+{%- endcomment -%}
+{%- assign readme_top = readme -%}
+{%- if readme contains '</h1>' -%}{%- assign readme_top = readme | split: '</h1>' | slice: 1, 1 | first -%}{%- endif -%}
+{%- assign readme_top = readme_top | split: '<h1' | first | split: '<h2' | first | split: '<blockquote>' -%}
+{%- capture readme_top_text -%}
+  {%- for part in readme_top -%}
+    {%- if forloop.first -%}{{ part }}{%- else -%}{{ part | split: '</blockquote>' | last }}{%- endif -%}
+  {%- endfor -%}
+{%- endcapture -%}
+{%- assign readme_intro = readme_top_text | split: '<p>' -%}
+{%- assign lede = '' -%}
+{%- assign ships = '' -%}
+{%- for raw in readme_intro offset: 1 -%}
+  {%- assign para = raw | split: '</p>' | first | strip -%}
+  {%- if para == '' or para contains '<img' -%}{%- continue -%}{%- endif -%}
+  {%- if lede == '' -%}{%- assign lede = para -%}{%- elsif ships == '' -%}{%- assign ships = para -%}{%- endif -%}
+{%- endfor %}
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap">
+    <p class="eyebrow">A programme of Foundation-0</p>
+    {%- comment -%} The first sentence of the brief's "Mission". {%- endcomment %}
+    <h1 id="hero-title">Verify the small set of libraries that most software depends on, in the open, to a standard anyone can re-check.</h1>
+    {%- if lede != '' %}
+    <p class="lede">{{ lede }}</p>
+    {%- else %}
+    {% include missing.html name="README: opening paragraph" href=readme_url source="the README" %}
+    {%- endif %}
+    <p class="actions">
+      <a class="button button-primary" href="{{ brief_url }}">Read the founding brief</a>
+      <a class="button" href="#bar">The verified bar</a>
+    </p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="ships-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="eyebrow">What a project ships</p>
+      <h2 id="ships-title">Four things, all public</h2>
+      {%- if ships != '' %}
+      <p>{{ ships }}</p>
+      {%- else %}
+      {% include missing.html name="README: second paragraph" href=readme_url source="the README" %}
+      {%- endif %}
+    </header>
+    <ol class="ships">
+      <li>
+        <h3>The library</h3>
+        <p>New code in Lean, published as open source.</p>
+      </li>
+      <li>
+        <h3>The specification</h3>
+        <p>What the code must do, in writing, approved by a reviewer who did not write it.</p>
+      </li>
+      <li>
+        <h3>The proof</h3>
+        <p>A proof a computer can check, and one command anyone can run to re-check it.</p>
+      </li>
+      <li>
+        <h3>The test report</h3>
+        <p>The new code compared against the original, with the seed, the input count, and the results on record.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+{%- capture bar -%}{% include doc-section.html html=brief level="3" id="the-verified-bar" %}{%- endcapture -%}
+{%- include split-list.html html=bar -%}
+{%- assign playbook_bar = site.pages | where: 'path', 'playbook/verified-bar.md' | first %}
+
+<section class="section section-alt" id="bar" aria-labelledby="bar-title">
+  <div class="wrap bar-layout">
+    <header class="section-head">
+      <p class="eyebrow">The verified bar</p>
+      <h2 id="bar-title">When a project may say verified</h2>
+      {%- if sl_ok and sl_after_plain %}
+      {{ sl_intro }}
+      {%- endif %}
+    </header>
+    <div class="bar-body">
+      {%- if sl_ok and sl_after_plain %}
+      <{{ sl_tag }} class="checklist">
+        {%- for raw in sl_items offset: 1 %}
+        <li>{{ raw | split: '</li>' | first | strip }}</li>
+        {%- endfor %}
+      </{{ sl_tag }}>
+        {%- if sl_after != '' %}
+      <div class="after-list">{{ sl_after }}</div>
+        {%- endif %}
+      {%- else %}
+      {% include missing.html name="brief: The verified bar" href=brief_url source="the founding brief" %}
+      {%- endif %}
+      <p class="aside-note">No project gets the verified label because a sponsor paid. Sponsorship buys priority. It does not buy the label.</p>
+      <p class="more">
+        {%- if playbook_bar %}<a href="{{ playbook_bar.url | relative_url }}#how-each-item-is-checked">How each item is checked</a>
+        {%- else %}<a href="{{ brief_url }}#the-verified-bar">The bar in the brief</a>{% endif -%}
+      </p>
+    </div>
+  </div>
+</section>
+
+{%- capture projects -%}{% include doc-section.html html=readme level="2" id="first-projects" %}{%- endcapture -%}
+{%- capture first_wave -%}{% include doc-section.html html=brief level="2" id="first-wave" %}{%- endcapture -%}
+{%- include split-list.html html=first_wave -%}
+{%- assign wave_ok = sl_ok -%}
+{%- assign wave_items = sl_items -%}
+{%- assign wave_shown = false -%}
+{%- assign reviews = site.pages | where: 'path', 'reviews/README.md' | first %}
+
+<section class="section" id="projects" aria-labelledby="projects-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="eyebrow">Projects</p>
+      <h2 id="projects-title">One repo per library</h2>
+      <p>Each library gets a repo of its own in the <a href="{{ site.org_url }}">Proven-Commons organisation</a>, named for the software it verifies.</p>
+    </header>
+    {%- assign project_paras = projects | split: '<p>' -%}
+    {%- if projects contains '<ul' or projects contains '<ol' or projects contains '<pre' or projects contains '<table' or projects contains '<blockquote' or projects contains '<h' -%}
+      {%- assign project_paras = '' | split: ',' -%}
+    {%- endif -%}
+    {%- assign notes = '' -%}
+    {%- if project_paras.size < 2 %}
+    {% include missing.html name="README: First projects" href=readme_url source="the README" %}
+    {%- endif -%}
+    {%- for raw in project_paras offset: 1 -%}
+      {%- assign text = raw | split: '</p>' | first | strip -%}
+      {%- assign label = text | split: ': ' | first -%}
+      {%- if label contains '(' and text contains '): ' -%}
+        {%- unless label contains ')' -%}{%- assign label = text | split: '): ' | first | append: ')' -%}{%- endunless -%}
+      {%- endif -%}
+      {%- assign body = text | remove_first: label | remove_first: ': ' -%}
+      {%- capture body -%}{{ body | slice: 0 | upcase }}{{ body | slice: 1, body.size }}{%- endcapture -%}
+      {%- assign label5 = label | slice: 0, 5 -%}
+      {%- assign label6 = label | slice: 0, 6 -%}
+      {%- assign label7 = label | slice: 0, 7 -%}
+      {%- assign label_end = label | slice: -1, 1 -%}
+      {%- if label == text or label.size > 80 -%}
+        {%- capture notes -%}{{ notes }}<p>{{ text }}</p>{%- endcapture -%}
+      {%- elsif label5 == 'Pilot' -%}
+        {%- assign status = '' -%}
+        {%- assign title = label -%}
+        {%- if label7 == 'Pilot (' and label_end == ')' -%}
+          {%- assign title = 'Pilot' -%}
+          {%- assign status = label | remove_first: 'Pilot (' | split: ')' | first | strip -%}
+        {%- endif %}
+    <article class="pilot" aria-labelledby="pilot-title-{{ forloop.index }}">
+      <h3 id="pilot-title-{{ forloop.index }}">{{ title }}</h3>
+      {%- if status != '' %}
+      <p class="status">{{ status }}</p>
+      {%- endif %}
+      <p>{{ body }}</p>
+    </article>
+      {%- elsif label5 == 'Wave ' %}
+    <h3 class="subhead">{{ label }}</h3>
+    <p class="subhead-text">{{ body }}</p>
+        {%- if label6 == 'Wave 1' -%}
+          {%- assign wave_shown = true -%}
+          {%- if wave_ok %}
+    <ul class="cards">
+            {%- for raw in wave_items offset: 1 -%}
+              {%- assign item = raw | split: '</li>' | first | strip -%}
+              {%- assign name = item | split: ': ' | first %}
+      <li class="card">
+              {%- if name != item and name.size < 80 -%}
+                {%- assign goal = item | remove_first: name | remove_first: ': ' %}
+        <h4>{{ name }}</h4>
+        <p class="card-label">Aims to</p>
+        <p>{{ goal | slice: 0 | upcase }}{{ goal | slice: 1, goal.size }}</p>
+              {%- else %}
+        <p>{{ item }}</p>
+              {%- endif %}
+      </li>
+            {%- endfor %}
+    </ul>
+          {%- else %}
+    {% include missing.html name="brief: First wave" href=brief_url source="the founding brief" %}
+          {%- endif -%}
+        {%- endif -%}
+      {%- else -%}
+        {%- capture notes -%}{{ notes }}<p>{{ text }}</p>{%- endcapture -%}
+      {%- endif -%}
+    {%- endfor %}
+    {%- if wave_ok and wave_shown == false and project_paras.size > 1 %}
+    {% include missing.html name="README: the Wave 1 line that goes with the brief's First wave" href=readme_url source="the README" %}
+    {%- endif %}
+    {%- if notes != '' %}
+    <div class="note">{{ notes }}</div>
+    {%- endif %}
+    <ul class="link-row">
+      {%- if reviews %}
+      <li><a href="{{ reviews.url | relative_url }}">Review records</a></li>
+      {%- endif %}
+      <li><a href="{{ site.org_url }}">All repos in the organisation</a></li>
+    </ul>
+  </div>
+</section>
+
+{%- capture factory -%}{% include doc-section.html html=brief level="2" id="how-a-project-moves-through-the-factory" %}{%- endcapture -%}
+{%- include split-list.html html=factory %}
+
+<section class="section section-alt" id="factory" aria-labelledby="factory-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="eyebrow">The factory</p>
+      <h2 id="factory-title">How a project moves through the factory</h2>
+      {%- if sl_ok and sl_after_plain %}
+      {{ sl_intro }}
+      {%- endif %}
+    </header>
+    {%- if sl_ok and sl_after_plain %}
+    <{{ sl_tag }} class="steps">
+      {%- for raw in sl_items offset: 1 -%}
+        {%- assign item = raw | split: '</li>' | first | strip -%}
+        {%- include split-lead.html item=item %}
+      <li>
+        {%- if sp_ok %}
+        <h3>{{ sp_lead }}</h3>
+        <p>{{ sp_body }}</p>
+        {%- else %}
+        <p>{{ item }}</p>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </{{ sl_tag }}>
+      {%- if sl_after != '' %}
+    <div class="after-list">{{ sl_after }}</div>
+      {%- endif %}
+    {%- else %}
+    {% include missing.html name="brief: How a project moves through the factory" href=brief_url source="the founding brief" %}
+    {%- endif %}
+    {%- assign playbook = site.pages | where: 'path', 'playbook/README.md' | first %}
+    <ul class="link-row">
+      {%- if playbook %}
+      <li><a href="{{ playbook.url | relative_url }}">The playbook</a></li>
+      {%- endif %}
+      <li><a href="{{ brief_url }}#target-scoring">How targets are scored</a></li>
+    </ul>
+  </div>
+</section>
+
+{%- capture academy -%}{% include doc-section.html html=brief level="2" id="the-academy" %}{%- endcapture -%}
+{%- include split-list.html html=academy %}
+
+<section class="section" id="academy" aria-labelledby="academy-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="eyebrow">The academy</p>
+      <h2 id="academy-title">Learn by shipping</h2>
+      {%- if sl_ok %}
+      {{ sl_intro | remove: '<p>Ladder:</p>' | strip }}
+      {%- endif %}
+    </header>
+    {%- if sl_ok %}
+    <ol class="ladder">
+      {%- for raw in sl_items offset: 1 -%}
+        {%- assign item = raw | split: '</li>' | first | strip -%}
+        {%- include split-lead.html item=item -%}
+        {%- assign level = sp_lead | split: ', ' | first -%}
+        {%- assign role = sp_lead | remove_first: level | remove_first: ', ' -%}
+        {%- assign name = role | split: ' (' | first | default: '' -%}
+        {%- assign meta = role | remove_first: name | strip | remove_first: '(' | split: ')' | first | default: '' | strip -%}
+        {%- assign desc = sp_body | split: 'Exit test: ' | first | strip -%}
+        {%- assign exit = sp_body | remove_first: desc | remove_first: 'Exit test: ' | strip -%}
+        {%- assign level4 = level | slice: 0, 6 %}
+      <li>
+        {%- if sp_ok and level4 == 'Level ' and name != '' %}
+        <h3><span class="level">{{ level }}</span> {{ name }}</h3>
+          {%- if meta != '' %}
+        <p class="level-meta">{{ meta }}</p>
+          {%- endif %}
+        <p>{{ desc }}</p>
+          {%- if exit != '' %}
+        <p class="exit"><span>Exit test</span> {{ exit | slice: 0 | upcase }}{{ exit | slice: 1, exit.size }}</p>
+          {%- endif %}
+        {%- else %}
+        <p>{{ item }}</p>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ol>
+      {%- if sl_after contains '<p>' %}
+    <div class="academy-notes">{{ sl_after }}</div>
+      {%- endif %}
+    {%- else %}
+    {% include missing.html name="brief: The academy" href=brief_url source="the founding brief" %}
+    {%- endif %}
+  </div>
+</section>
+
+<section class="section section-band" aria-labelledby="brief-title">
+  <div class="wrap band">
+    <div>
+      <p class="eyebrow">Read more</p>
+      <h2 id="brief-title">The founding brief</h2>
+      <p>The full plan, in these parts:</p>
+      <nav aria-label="Founding brief">{% include toc.html html=brief base=brief_url %}</nav>
+    </div>
+    <p class="actions">
+      <a class="button button-primary" href="{{ brief_url }}">Read the brief</a>
+      <a class="button" href="{{ site.repo_url }}/issues">Comment on GitHub</a>
+    </p>
+  </div>
+</section>

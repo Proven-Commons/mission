@@ -1,0 +1,28 @@
+{%- comment -%}
+  Splits one section of a rendered document (include.html) at its first
+  list. Sets, for the caller:
+    sl_intro  what comes before the list
+    sl_tag    ul or ol
+    sl_items  the list split at <li>; skip the first entry
+    sl_after  what comes after the list
+    sl_after_plain  true if sl_after is empty or only paragraphs
+    sl_ok     false if there is no list, or it holds a nested list
+  Items of a loose list (blank lines between them) lose their <p> tags.
+{%- endcomment -%}
+{%- assign sl_ul = include.html | split: '<ul>' | first | size -%}
+{%- assign sl_ol = include.html | split: '<ol>' | first | size -%}
+{%- if sl_ol < sl_ul -%}{%- assign sl_tag = 'ol' -%}{%- else -%}{%- assign sl_tag = 'ul' -%}{%- endif -%}
+{%- assign sl_open = '<' | append: sl_tag | append: '>' -%}
+{%- assign sl_close = '</' | append: sl_tag | append: '>' -%}
+{%- assign sl_intro = include.html | split: sl_open | first | strip -%}
+{%- assign sl_rest = include.html | remove_first: sl_intro | strip | remove_first: sl_open -%}
+{%- assign sl_list = sl_rest | split: sl_close | first -%}
+{%- assign sl_after = sl_rest | remove_first: sl_list | remove_first: sl_close | strip -%}
+{%- assign sl_items = sl_list | replace: '</p>', ' ' | remove: '<p>' | split: '<li>' -%}
+{%- assign sl_ok = true -%}
+{%- unless include.html contains sl_open -%}{%- assign sl_ok = false -%}{%- endunless -%}
+{%- unless sl_list contains '<li>' -%}{%- assign sl_ok = false -%}{%- endunless -%}
+{%- if sl_list contains '<ul' or sl_list contains '<ol' -%}{%- assign sl_ok = false -%}{%- endif -%}
+{%- assign sl_after_plain = true -%}
+{%- assign sl_after_tags = sl_after | remove: '<p>' | remove: '</p>' | remove: '<code' | remove: '</code>' | remove: '<a ' | remove: '</a>' | remove: '<em>' | remove: '</em>' | remove: '<strong>' | remove: '</strong>' -%}
+{%- if sl_after_tags contains '<' -%}{%- assign sl_after_plain = false -%}{%- endif -%}

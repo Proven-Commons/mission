@@ -1,0 +1,47 @@
+# Checks that the website still builds, on every pull request and on main.
+# GitHub Pages publishes the site itself from the main branch, with this
+# same build. The run on main catches two merged pull requests that each
+# passed alone but break the site together.
+name: Site build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # GitHub Pages runs this action with the github-pages gem, version 232.
+      # When Dependabot moves it to a release with a new gem version, change
+      # the version in the Gemfile to match.
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./
+          destination: ./_site
+
+      - name: Check that the home page found its sections
+        run: |
+          test -s _site/index.html || { echo "::error::The build wrote no home page."; exit 1; }
+          if grep -o 'data-missing="[^"]*"' _site/index.html; then
+            echo "::error file=index.html::The home page could not find, or could not read, the parts listed above in README.md or FOUNDING-BRIEF.md. Either a heading was renamed, or a part changed shape, for example a list inside a list, or a table or list where the home page expects paragraphs. The note at the top of index.html lists the shapes it reads."
+            exit 1
+          fi
+
+      - name: Check the links between pages
+        run: python3 .github/scripts/check_site_links.py _site /mission

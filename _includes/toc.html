@@ -1,0 +1,15 @@
+{%- comment -%}
+  Lists the h2 headings in include.html as links. Headings without an id
+  are left out. include.base goes before each #id (empty for this page).
+{%- endcomment -%}
+{%- assign toc_parts = include.html | split: '<h2' -%}
+<ol class="toc-list">
+{%- for toc_part in toc_parts offset: 1 -%}
+  {%- assign toc_head = toc_part | split: '</h2>' | first -%}
+  {%- assign toc_attrs = toc_head | split: '>' | first -%}
+  {%- unless toc_attrs contains 'id="' -%}{%- continue -%}{%- endunless -%}
+  {%- assign toc_id = toc_attrs | split: 'id="' | last | split: '"' | first -%}
+  {%- assign toc_text = toc_head | remove_first: toc_attrs | remove_first: '>' | replace: '<sup', '<!--' | replace: '</sup>', '-->' | strip_html | strip -%}
+  <li><a href="{{ include.base }}#{{ toc_id }}">{{ toc_text }}</a></li>
+{%- endfor -%}
+</ol>

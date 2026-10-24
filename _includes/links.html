@@ -1,0 +1,11 @@
+{%- comment -%}
+  Prints include.html with each href sent through link.html.
+  include.dir and include.self are passed on (see link.html).
+{%- endcomment -%}
+{%- assign ln_parts = include.html | split: 'href="' -%}
+{%- for ln_part in ln_parts -%}
+  {%- if forloop.first -%}{{ ln_part }}{%- continue -%}{%- endif -%}
+  {%- assign ln_url = ln_part | split: '"' | first -%}
+  {%- include link.html url=ln_url dir=include.dir self=include.self -%}
+  href="{{ lk_url }}{{ ln_part | remove_first: ln_url }}
+{%- endfor -%}

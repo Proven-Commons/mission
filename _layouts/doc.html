@@ -1,0 +1,42 @@
+---
+layout: default
+body_class: doc-page
+---
+{%- capture toc -%}{% include toc.html html=content %}{%- endcapture -%}
+{%- assign has_toc = false -%}
+{%- if toc contains '<li>' -%}{%- assign has_toc = true -%}{%- endif -%}
+<div class="wrap doc-layout{% if has_toc %} has-toc{% endif %}">
+  {%- if has_toc %}
+  <div class="doc-aside">
+    <nav class="toc toc-wide" aria-label="Contents">
+      <p class="toc-title">Contents</p>
+      {{ toc }}
+    </nav>
+  </div>
+  {%- endif %}
+  <article class="doc">
+    <p class="doc-meta">
+      <span class="eyebrow">{{ page.eyebrow | default: 'Document' }}</span>
+      <a href="{{ site.repo_url }}/blob/main/{{ page.path }}">Source: <code>{{ page.path }}</code></a>
+    </p>
+    {%- if has_toc %}
+    <details class="toc toc-narrow">
+      <summary>Contents</summary>
+      <nav aria-label="Contents">
+        {{ toc }}
+      </nav>
+    </details>
+    {%- endif %}
+    {%- comment -%}
+      Links are read from the source file's folder, as on GitHub (see
+      _includes/link.html). Code blocks and tables can scroll sideways, so
+      tabindex lets a keyboard user reach them and scroll.
+    {%- endcomment -%}
+    {%- assign doc_dir = page.path | split: '/' | pop | join: '/' -%}
+    {%- if doc_dir != '' -%}{%- assign doc_dir = doc_dir | append: '/' -%}{%- endif -%}
+    {%- capture doc_body -%}{% include links.html html=content dir=doc_dir self="" %}{%- endcapture %}
+    <div class="prose">
+{{ doc_body | replace: '<pre class="highlight">', '<pre class="highlight" tabindex="0">' | replace: '<table>', '<table tabindex="0">' }}
+    </div>
+  </article>
+</div>

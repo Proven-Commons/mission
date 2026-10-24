@@ -1,0 +1,81 @@
+# Settings for the Proven Commons website.
+#
+# GitHub Pages builds the site from the main branch of this repo and serves
+# it at https://proven-commons.github.io/mission/. The home page quotes
+# README.md and FOUNDING-BRIEF.md (see the note at the top of index.html).
+# Other Markdown files become pages, and a folder's README.md becomes that
+# folder's page. The brief is published at /brief/.
+
+title: Proven Commons
+tagline: A verified software factory and academy
+description: >-
+  Proven Commons rewrites widely used software libraries in Lean and proves
+  that the new code follows its written specification. A programme of
+  Foundation-0.
+lang: en-GB
+
+# If the site moves to a custom domain, change url and baseurl together.
+url: https://proven-commons.github.io
+baseurl: /mission
+
+org_url: https://github.com/Proven-Commons
+repo_url: https://github.com/Proven-Commons/mission
+logo: /assets/img/icon-512.png
+social:
+  name: Proven Commons
+  links:
+    - https://github.com/Proven-Commons
+
+# The site has its own layouts. Without this, GitHub adds its default theme.
+theme: null
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Publish each Markdown file as a page only, not also as a raw .md copy.
+optional_front_matter:
+  remove_originals: true
+readme_index:
+  remove_originals: true
+
+# The README is the repo's front page on GitHub. The site has its own home
+# page, which quotes it.
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: doc
+      image:
+        path: /assets/img/social-card.png
+        width: 1200
+        height: 630
+        alt: >-
+          Proven Commons. Verify the small set of libraries that most software
+          depends on, in the open, to a standard anyone can re-check.
+  # bar/template holds files that a new library repo copies. Its pages are
+  # samples, so they are marked as such and kept out of the sitemap.
+  - scope:
+      path: bar/template
+    values:
+      eyebrow: Template, not a real project
+      sitemap: false
+  - scope:
+      path: FOUNDING-BRIEF.md
+    values:
+      title: Founding brief
+      description: >-
+        The full plan for Proven Commons: how a project moves through the
+        factory, the verified bar, the academy, funding, and the 90-day plan.
+      permalink: /brief/

@@ -35,3 +35,13 @@ Graduation at each level is merged work that a computer checked. That record is 
 ## Read more
 
 See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
+
+## Website
+
+This repo is also the org's website: https://proven-commons.github.io/mission/. GitHub Pages builds it from the main branch.
+
+The home page quotes this README and the brief: the opening paragraphs and First projects here, and the factory, the verified bar, the first wave, and the academy in the brief. Change those sections and the home page changes with them. Its headings and a few short lines, such as the four cards on what a project ships, are written in `index.html`, so check them when either document changes. If a quoted section is renamed or changes shape, the site build check on pull requests fails and names it.
+
+The brief is at /brief/. Other Markdown files become pages too, and a folder's README.md becomes that folder's page. This README is not a page, so links to it from other docs go to it on GitHub.
+
+To preview the site on your own machine, install Ruby 3.3 (the github-pages gem does not install on Ruby 4), run `bundle install`, then `bundle exec jekyll serve`, and open http://localhost:4000/mission/.

@@ -1,1 +1,10 @@
+# Website build output and local preview files
+_site/
+.jekyll-cache/
+.jekyll-metadata
+.sass-cache/
+.bundle/
+vendor/
+Gemfile.lock
+
 __pycache__/

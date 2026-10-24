@@ -1,0 +1,5 @@
+{%- comment -%}
+  Shown when the home page cannot find a section in its source document.
+  The build check on pull requests looks for data-missing and fails.
+{%- endcomment -%}
+<p class="missing" data-missing="{{ include.name }}">This part is in <a href="{{ include.href }}">{{ include.source }}</a>.</p>

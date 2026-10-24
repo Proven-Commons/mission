@@ -1,0 +1,87 @@
+{%- comment -%}
+  Works out where one link in a document should go on the site, and sets
+  lk_url for the caller.
+    include.url   the href as written, or as jekyll-relative-links left it
+    include.dir   the folder of the source file in the repo, such as
+                  "reviews/", or "" for the repo root
+    include.self  where a link to "#id" goes, or "" to leave it as it is
+
+  A relative link is read the way GitHub reads it, from the source file's
+  folder. It then goes to:
+  - the page, if the target is a page of the site (a folder's README.md is
+    the folder's page);
+  - the file on GitHub, if it is a source file: one of the extensions
+    below, a file with no extension, or anything under a dotfolder. GitHub
+    Pages would download these instead of showing them;
+  - the folder on GitHub, if the folder has no page;
+  - the README on GitHub, for the root README.md, which is not a page;
+  - otherwise the file on the site, and the link check catches it if it
+    is missing.
+  Links with a scheme, such as https: or mailto:, stay as they are.
+{%- endcomment -%}
+{%- assign lk_code = '.lean .py .toml .json .yml .yaml .sh .txt .cfg .in .lock' | split: ' ' -%}
+{%- assign lk_url = include.url -%}
+{%- assign lk_first = include.url | slice: 0 -%}
+{%- assign lk_base = site.baseurl | append: '/' -%}
+{%- assign lk_page = nil -%}
+{%- assign lk_repo = nil -%}
+{%- if lk_first == '#' -%}
+  {%- if include.self != '' -%}{%- assign lk_url = include.self | append: include.url -%}{%- endif -%}
+{%- elsif include.url contains ':' or include.url == '' -%}
+{%- else -%}
+  {%- assign lk_path = include.url | split: '#' | first -%}
+  {%- assign lk_frag = include.url | remove_first: lk_path -%}
+  {%- assign lk_end = lk_path | slice: -1, 1 -%}
+  {%- if lk_first == '/' -%}
+    {%- assign lk_head = lk_path | slice: 0, lk_base.size -%}
+    {%- if lk_head == lk_base -%}
+      {%- assign lk_site = lk_path | remove_first: site.baseurl -%}
+      {%- assign lk_page = site.pages | where: 'url', lk_site | first -%}
+      {%- assign lk_repo = lk_site | remove_first: '/' -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- assign lk_segs = include.dir | append: lk_path | split: '/' -%}
+    {%- assign lk_out = '' | split: '' -%}
+    {%- for lk_seg in lk_segs -%}
+      {%- if lk_seg == '..' -%}
+        {%- assign lk_out = lk_out | pop -%}
+      {%- elsif lk_seg != '.' and lk_seg != '' -%}
+        {%- assign lk_out = lk_out | push: lk_seg -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- assign lk_repo = lk_out | join: '/' -%}
+    {%- if lk_end == '/' and lk_repo != '' -%}{%- assign lk_repo = lk_repo | append: '/' -%}{%- endif -%}
+    {%- assign lk_page = site.pages | where: 'path', lk_repo | first -%}
+  {%- endif -%}
+  {%- if lk_repo != nil -%}
+    {%- assign lk_tail = lk_repo | slice: -1, 1 -%}
+    {%- assign lk_folder = lk_repo -%}
+    {%- if lk_tail != '/' and lk_repo != '' -%}{%- assign lk_folder = lk_repo | append: '/' -%}{%- endif -%}
+    {%- assign lk_readme = lk_folder | append: 'README.md' -%}
+    {%- assign lk_index_md = lk_folder | append: 'index.md' -%}
+    {%- assign lk_index_html = lk_folder | append: 'index.html' -%}
+    {%- assign lk_index = site.pages | where: 'path', lk_readme | first -%}
+    {%- unless lk_index -%}{%- assign lk_index = site.pages | where: 'path', lk_index_md | first -%}{%- endunless -%}
+    {%- unless lk_index -%}{%- assign lk_index = site.pages | where: 'path', lk_index_html | first -%}{%- endunless -%}
+    {%- assign lk_name = lk_repo | split: '/' | last -%}
+    {%- assign lk_ext = lk_name | split: '.' | last | prepend: '.' -%}
+    {%- assign lk_dot = lk_repo | slice: 0 -%}
+    {%- assign lk_source = false -%}
+    {%- if lk_dot == '.' or lk_repo contains '/.' or lk_code contains lk_ext -%}{%- assign lk_source = true -%}{%- endif -%}
+    {%- unless lk_name contains '.' -%}{%- assign lk_source = true -%}{%- endunless -%}
+    {%- if lk_page -%}
+      {%- assign lk_url = lk_page.url | relative_url | append: lk_frag -%}
+    {%- elsif lk_repo == 'README.md' -%}
+      {%- assign lk_url = site.repo_url | append: lk_frag -%}
+      {%- if lk_frag == '' -%}{%- assign lk_url = lk_url | append: '#readme' -%}{%- endif -%}
+    {%- elsif lk_index -%}
+      {%- assign lk_url = lk_index.url | relative_url | append: lk_frag -%}
+    {%- elsif lk_tail == '/' or lk_repo == '' -%}
+      {%- assign lk_url = site.repo_url | append: '/tree/main/' | append: lk_repo -%}
+    {%- elsif lk_source -%}
+      {%- assign lk_url = site.repo_url | append: '/blob/main/' | append: lk_repo | append: lk_frag -%}
+    {%- else -%}
+      {%- assign lk_url = lk_base | append: lk_repo | append: lk_frag -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}

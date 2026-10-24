@@ -1,0 +1,29 @@
+{%- comment -%}
+  Splits a list item (include.item) into a short lead and the rest, at the
+  first ". " or, if it comes first, ": ". Sets, for the caller:
+    sp_ok    true if the split is safe to show as a heading and a body
+    sp_lead  the lead, without its full stop or colon
+    sp_body  the rest, with its first letter capitalised
+  The split is not safe when the lead would cut through inline code, a
+  link or a bracket, or when the text after ". " starts in lower case, as
+  after "e.g.". The caller then shows the whole item as it is.
+  A bold or italic lead, such as "**Pick the target.** Score it", splits
+  after the bold text.
+{%- endcomment -%}
+{%- assign sp_item = include.item | replace_first: '.</strong> ', '</strong>. ' | replace_first: '.</em> ', '</em>. ' -%}
+{%- assign sp_lead = sp_item | split: '. ' | first -%}
+{%- assign sp_sep = '.' -%}
+{%- if sp_lead contains ': ' -%}
+  {%- assign sp_lead = sp_lead | split: ': ' | first -%}
+  {%- assign sp_sep = ': ' -%}
+{%- endif -%}
+{%- assign sp_rest = sp_item | remove_first: sp_lead | remove_first: sp_sep | strip -%}
+{%- assign sp_ok = true -%}
+{%- if sp_rest == '' or sp_lead == sp_item -%}{%- assign sp_ok = false -%}{%- endif -%}
+{%- if sp_lead contains '<code' -%}{%- unless sp_lead contains '</code>' -%}{%- assign sp_ok = false -%}{%- endunless -%}{%- endif -%}
+{%- if sp_lead contains '<a ' -%}{%- unless sp_lead contains '</a>' -%}{%- assign sp_ok = false -%}{%- endunless -%}{%- endif -%}
+{%- if sp_lead contains '(' -%}{%- unless sp_lead contains ')' -%}{%- assign sp_ok = false -%}{%- endunless -%}{%- endif -%}
+{%- assign sp_first = sp_rest | slice: 0 -%}
+{%- assign sp_upper = sp_first | upcase -%}
+{%- if sp_sep == '.' and sp_first != sp_upper -%}{%- assign sp_ok = false -%}{%- endif -%}
+{%- capture sp_body -%}{{ sp_first | upcase }}{{ sp_rest | slice: 1, sp_rest.size }}{%- endcapture -%}
