@@ -1,5 +1,5 @@
 # Founding Brief: Proven Commons, a verified software factory and academy
-Proven Commons is a programme of Foundation-0, a non-profit organisation. Home folder in the shared vault: `proven-commons`. Public repo: https://github.com/Foundation-0/proven-commons
+Proven Commons is a programme of Foundation-0, a non-profit organisation. Home folder in the shared vault: `proven-commons`. GitHub home: the Proven-Commons org, https://github.com/Proven-Commons/proven-commons
 
 This org rewrites widely used software libraries in Lean, a programming language that can check a proof that code follows its specification. It publishes the verified code as open source. It trains people by having them ship real verified modules, not by having them finish lectures.
 
@@ -135,6 +135,8 @@ Costs to plan for: senior verifier pay (market rate is high because supply is lo
 ## Form: settled
 
 Proven Commons sits under Foundation-0, a non-profit organisation. Decision made 2026-10-23. No new legal entity for the pilot.
+
+GitHub home is the org's own: Proven-Commons, moved there 2026-10-23. The `proven-commons` repo in that org holds the org's own documents: this brief, the playbook, and the academy record. Each verified library gets a repo of its own in the same org, named for the software it verifies. A reader who wants one library should not have to take the whole org with it, and each repo can carry its own proof check, releases, and page.
 
 Two other forms were set aside for now. A programme inside a company is faster to start, but a company home can blur the open promise and many grant makers need a non-profit.
 
