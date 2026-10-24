@@ -17,7 +17,7 @@ A project may use the word verified in public only when all of these hold:
 
 ## First projects
 
-Pilot (complete, in `pilot/`): a tar extractor with a proved rule that no file in an archive can be written outside the destination folder. See `pilot/README.md` for what is proved, what is not proved, and the recorded test results.
+Pilot (complete): the tar extractor lives in its own repo, [tar](https://github.com/Proven-Commons/tar). It has a proved rule that no file in an archive can be written outside the destination folder. Its project page states what is proved, what is not proved, and the recorded test results.
 
 Wave 1: a policy engine in the style of AWS Cedar, a reader for the SQLite file format, and a parser for the Redis protocol with a small key-value store.
 
