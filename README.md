@@ -17,7 +17,7 @@ A project may use the word verified in public only when all of these hold:
 
 ## First projects
 
-Pilot (complete): the tar extractor lives in its own repo, [tar](https://github.com/Proven-Commons/tar). It has a proved rule that no file in an archive can be written outside the destination folder. Its project page states what is proved, what is not proved, and the recorded test results.
+Pilot (built, not yet verified): the tar extractor lives in its own repo, [tar](https://github.com/Proven-Commons/tar). Its goal is a proved rule that no file in an archive can be written outside the destination folder. Its proofs check, but the [bar audit of 2026-10-24](reviews/tar/2026-10-24-bar-audit.md) found that the main theorem states less than that rule, that two statements on its project page are false, and that four of the six bar items are not yet fully met. The audit lists the fixes.
 
 Wave 1: a policy engine in the style of AWS Cedar, a reader for the SQLite file format, and a parser for the Redis protocol with a small key-value store.
 
@@ -34,4 +34,4 @@ Graduation at each level is merged work that a computer checked. That record is 
 
 ## Read more
 
-See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan.
+See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
