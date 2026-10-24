@@ -1,0 +1,10 @@
+name = "tar-pilot"
+version = "0.1.0"
+defaultTargets = ["TarPilot", "tar-pilot"]
+
+[[lean_lib]]
+name = "TarPilot"
+
+[[lean_exe]]
+name = "tar-pilot"
+root = "Main"
