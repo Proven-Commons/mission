@@ -23,6 +23,8 @@ Pilot (complete): the tar extractor lives in its own repo, [tar](https://github.
 
 Wave 1: a policy engine in the style of AWS Cedar, a reader for the SQLite file format, and a parser for the Redis protocol with a small key-value store.
 
+Candidate list: [CANDIDATES.md](CANDIDATES.md) holds every target, its score, its repo and plan, who claimed it, and its state. It is updated as targets ship and new candidates are proposed.
+
 Each project sends reusable lemmas to CSLib and Mathlib, the shared libraries for computer science and mathematics in Lean. The shared library grows. The next project starts cheaper.
 
 ## Learn here
