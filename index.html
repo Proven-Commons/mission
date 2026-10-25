@@ -623,57 +623,76 @@
           <li>
             <span>01</span>
             <div>
-              <h3>A public, independently reviewed specification</h3>
+              <h3>A reviewed, pinned specification</h3>
               <p>
-                Someone other than the author approves what the code is meant to
-                do.
+                A reviewer on the org's list, who did not write it, approves
+                what the code is meant to do. The approval records a hash, and
+                any later change voids it.
               </p>
             </div>
           </li>
           <li>
             <span>02</span>
             <div>
-              <h3>No gaps passed off as proofs</h3>
-              <p>No <code>sorry</code> or <code>admit</code> in the build.</p>
+              <h3>Every claim names its theorem</h3>
+              <p>
+                The reviewer checks that each theorem says what the public claim
+                says.
+              </p>
             </div>
           </li>
           <li>
             <span>03</span>
             <div>
-              <h3>Visible assumptions</h3>
+              <h3>One command re-checks the proofs</h3>
               <p>
-                Main theorems report only standard Lean axioms through
-                <code>#print axioms</code>.
+                <code>lake comparator --paranoid</code> checks that the proofs
+                prove exactly the approved statements, with only the standard
+                Lean axioms, under every kernel shipped with Lean.
               </p>
             </div>
           </li>
           <li>
             <span>04</span>
             <div>
-              <h3>Recorded differential tests</h3>
+              <h3>The code that runs is the code that was proved</h3>
               <p>
-                Compare against the original implementation. Publish input
-                counts, seeds, and results.
+                The programs people run call the proved functions. Project code
+                uses no <code>implemented_by</code>, <code>extern</code>,
+                <code>unsafe</code>, native evaluation, metaprogramming,
+                <code>axiom</code>, or <code>sorry</code> outside the statements,
+                unless the page lists the exception.
               </p>
             </div>
           </li>
           <li>
             <span>05</span>
             <div>
-              <h3>Explicit trust boundaries</h3>
+              <h3>Recorded differential tests</h3>
               <p>
-                List what remains unproved, including the runtime, compiler,
-                hardware, and unverified code.
+                Compare against the original implementation on random and
+                mutated inputs. Commit the oracle, seed, input count, and
+                results.
               </p>
             </div>
           </li>
           <li>
             <span>06</span>
             <div>
-              <h3>A reproducible re-check</h3>
+              <h3>Explicit trust boundaries</h3>
               <p>
-                A stranger can clone the repository and check the proof with one
-                command.
+                List what remains unproved: the kernel, compiler, runtime,
+                hardware, dependencies, and unverified code.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span>07</span>
+            <div>
+              <h3>Checked on every change</h3>
+              <p>
+                The check runs in CI, the default branch requires it, and
+                releases are tagged only from the default branch.
               </p>
             </div>
           </li>
@@ -744,8 +763,10 @@
                   <span class="disclosure-icon" aria-hidden="true"></span>
                 </summary>
                 <p>
-                  State valid inputs, allowed errors, and invariants in Lean. A
-                  reviewer who did not write the specification must approve it.
+                  Write the specification in plain words, and state each
+                  property as a Lean theorem with the proof left out. A reviewer
+                  who did not write it approves it, and the approval records a
+                  hash of what was approved.
                 </p>
               </details>
               <details>
@@ -760,13 +781,13 @@
               </details>
               <details>
                 <summary>
-                  <span>04</span> State and prove the theorems
+                  <span>04</span> Prove the theorems
                   <span class="disclosure-icon" aria-hidden="true"></span>
                 </summary>
                 <p>
-                  Prove the main claims and supporting lemmas. Treat a failed
-                  proof as a bug report against the code, specification, or
-                  missing reasoning.
+                  Prove the specification's theorems, under the same names, with
+                  the lemmas under them. Treat a failed proof as a bug report
+                  against the code, specification, or missing reasoning.
                 </p>
               </details>
               <details>
@@ -775,9 +796,10 @@
                   <span class="disclosure-icon" aria-hidden="true"></span>
                 </summary>
                 <p>
-                  Check for proof gaps and unexpected axioms. Run random and
-                  mutated inputs against the original implementation. Record
-                  what failed.
+                  Run <code>lake comparator --paranoid</code>. Try to write a
+                  wrong program that still meets each statement. Run random and
+                  mutated inputs against the original implementation, and record
+                  the seed, the count, and what failed.
                 </p>
               </details>
               <details>
@@ -797,9 +819,10 @@
                   <span class="disclosure-icon" aria-hidden="true"></span>
                 </summary>
                 <p>
-                  The standard calls for proof checks in CI. A broken proof
-                  blocks a release until it is repaired or a specification
-                  change is reviewed and recorded.
+                  The bar check runs in CI on every change. A broken proof
+                  blocks a release until it is fixed. A change to the
+                  specification or to the page's claims voids the approval until
+                  a reviewer approves it again.
                 </p>
               </details>
             </div>
