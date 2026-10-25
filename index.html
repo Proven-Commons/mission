@@ -416,13 +416,19 @@
             <div class="pilot-copy">
               <div class="project-status">
                 <span class="status-dot" aria-hidden="true"></span> FIRST PILOT
-                · COMPLETE · OCTOBER 2026
+                · BUILT, NOT YET VERIFIED · OCTOBER 2026
               </div>
               <h3>Keep an archive<br />inside its boundaries.</h3>
               <p>
-                The tar pilot proves path confinement for an in-memory ustar
-                extraction model: accepted paths cannot escape the destination
-                in that model.
+                The tar pilot's goal is a proved rule for an in-memory ustar
+                extraction model: no accepted path can escape the destination.
+                Its proofs check, but the
+                <a
+                  href="https://github.com/Proven-Commons/mission/blob/main/reviews/tar/2026-10-24-bar-audit.md"
+                  >bar audit of 2026-10-24</a
+                >
+                found that the main theorem states less than that rule. The
+                audit lists the fixes.
               </p>
               <p class="scope-note">
                 <strong>The boundary of the claim:</strong> it does not write
