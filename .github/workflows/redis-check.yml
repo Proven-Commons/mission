@@ -1,0 +1,39 @@
+name: redis proof check
+
+on:
+  push:
+    paths:
+      - "projects/redis/**"
+      - ".github/workflows/redis-check.yml"
+  pull_request:
+    paths:
+      - "projects/redis/**"
+      - ".github/workflows/redis-check.yml"
+
+jobs:
+  proof-and-tests:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: projects/redis
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+          sh elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build and check proofs
+        run: lake build
+      - name: Print axioms
+        run: lake env lean Resp/Verify.lean
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install oracles
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y redis-server
+          pip install hiredis==3.5.0
+      - name: Differential tests
+        run: python3 tests/run_tests.py

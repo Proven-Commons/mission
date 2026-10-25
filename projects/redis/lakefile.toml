@@ -1,0 +1,10 @@
+name = "resp"
+version = "0.1.0"
+defaultTargets = ["Resp", "resp"]
+
+[[lean_lib]]
+name = "Resp"
+
+[[lean_exe]]
+name = "resp"
+root = "Main"

@@ -543,12 +543,33 @@
               </p>
             </article>
             <article>
-              <span class="project-index">03 — PROTOCOLS</span>
+              <span class="project-index">03 — PROTOCOLS · PROOFS DONE</span>
               <h3>Redis parser &amp; store</h3>
               <p>
-                Prove that printing and parsing recover the same command, and
-                that get, set, and delete behave as specified.
+                Proved in Lean: parsing what the printer wrote gives the same
+                value back, the parser accepts nothing else, and a get after a
+                set or delete behaves as specified. Not yet verified: the
+                specification awaits independent review.
               </p>
+              <a
+                class="text-link"
+                href="https://github.com/Proven-Commons/mission/tree/main/projects/redis"
+                >See the work in progress
+                <span aria-hidden="true"
+                  ><svg
+                    class="icon"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 12 12 4M4 4h8v8"
+                      stroke="currentColor"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    /></svg></span
+              ></a>
             </article>
           </div>
           <p class="section-footnote">
