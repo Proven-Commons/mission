@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <title>Proven Commons — Software the world can build on.</title>
+  <desc>A verified software factory and academy. A network of open modules connects to a checked proof.</desc>
+  <defs>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#698775" opacity=".2"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#f7f6f0"/>
+  <rect x="790" width="410" height="630" fill="url(#grid)"/>
+  <path d="M64 78H1140" stroke="#173d35" stroke-opacity=".18"/>
+  <g transform="translate(64 112)">
+    <path d="M14 0H0V44H14M34 0H48V44H34" fill="none" stroke="#173d35" stroke-width="2.5"/>
+    <path d="M13 22L21 30L37 12" fill="none" stroke="#b7882c" stroke-width="3"/>
+    <text x="66" y="31" font-family="Georgia, 'Times New Roman', serif" font-size="33" fill="#173d35">Proven Commons</text>
+  </g>
+  <text x="64" y="265" font-family="Georgia, 'Times New Roman', serif" font-size="72" letter-spacing="-2" fill="#173d35">Software the world</text>
+  <text x="64" y="345" font-family="Georgia, 'Times New Roman', serif" font-size="72" letter-spacing="-2" fill="#173d35">can build on.</text>
+  <path d="M68 373H450" stroke="#d8a83f" stroke-width="4"/>
+  <text x="66" y="444" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#173d35">A verified software factory &amp; academy</text>
+  <text x="66" y="551" font-family="Arial, Helvetica, sans-serif" font-size="15" letter-spacing="2" fill="#698775">PUBLIC CODE. CHECKABLE PROOFS. SHARED KNOWLEDGE.</text>
+  <g fill="none" stroke="#698775" stroke-width="1.5" stroke-opacity=".6">
+    <path d="M911 172V255L1000 307M1088 195V255L1000 307M869 340L1000 307M1134 367L1000 307M918 486V407L1000 307M1089 511V415L1000 307"/>
+    <rect x="880" y="128" width="62" height="44" fill="#f7f6f0"/>
+    <rect x="1057" y="151" width="62" height="44" fill="#f7f6f0"/>
+    <rect x="807" y="318" width="62" height="44" fill="#f7f6f0"/>
+    <rect x="1134" y="345" width="62" height="44" fill="#f7f6f0"/>
+    <rect x="887" y="486" width="62" height="44" fill="#f7f6f0"/>
+    <rect x="1058" y="511" width="62" height="44" fill="#f7f6f0"/>
+  </g>
+  <g fill="#173d35" font-family="monospace" font-size="15" text-anchor="middle">
+    <text x="911" y="155">{ }</text>
+    <text x="1088" y="178">{ }</text>
+    <text x="838" y="345">{ }</text>
+    <text x="1165" y="372">{ }</text>
+    <text x="918" y="513">{ }</text>
+    <text x="1089" y="538">{ }</text>
+  </g>
+  <rect x="951" y="258" width="98" height="98" rx="2" fill="#173d35"/>
+  <path d="M980 306L995 321L1023 290" fill="none" stroke="#d8a83f" stroke-width="5"/>
+  <path d="M64 583H1140" stroke="#173d35" stroke-opacity=".18"/>
+</svg>

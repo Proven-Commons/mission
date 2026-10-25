@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Proven Commons</title>
+  <rect width="64" height="64" rx="14" fill="#173d35"/>
+  <path d="M24 16H16V48H24M40 16H48V48H40" fill="none" stroke="#f7f6f0" stroke-width="3" stroke-linecap="square"/>
+  <path d="M24 32L30 38L41 25" fill="none" stroke="#d8a83f" stroke-width="3.5" stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>
