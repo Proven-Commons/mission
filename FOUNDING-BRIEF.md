@@ -37,23 +37,24 @@ Verify the small set of libraries that most software depends on, in the open, to
 Each project follows the same seven steps. The playbook is public. Each step has a named owner and a check.
 
 1. Pick the target. Score it (see Target scoring). Freeze the original tests, the written specification or RFC, and sample files.
-2. Write the specification in Lean. State what inputs are valid, what errors are allowed, and what must always hold. A reviewer who did not write the specification must approve it.
+2. Write the specification: `SPEC.md` in plain words, and a Lean file that states each property as a theorem with `sorry` in place of the proof. State what inputs are valid, what errors are allowed, and what must always hold. Pair each safety property with one that a program doing nothing would fail, or say on the project page that usefulness rests on tests alone. A reviewer who did not write the specification must approve it, and the approval records a hash of what was approved.
 3. Build a proof-friendly version in Lean. Pure functions. Total functions that return an error instead of crashing. No pointer tricks carried over from C.
-4. State the main theorems and the lemmas under them. Prove them. A failed proof is treated as a bug report against the code, the specification, or a missing lemma.
-5. Attack the result. Check for `sorry`. Print the axioms the proof depends on. Run differential tests against the original library on random and mutated inputs. Record the input count and the failures found.
-6. Ship it. Offer the code to the upstream project in the form that project can use: a Lean replacement library, or a Lean model plus a production implementation kept in step by differential tests, as AWS does with Cedar. Publish a page that states what was proved, what was not proved, and what a reader must still trust (the Lean kernel, compiler, runtime, and any foreign function code).
-7. Maintain it. The proof runs in continuous integration. A change that breaks a proof blocks a release until the proof is fixed or the specification change is approved and recorded.
+4. Prove the specification's theorems, under the same names, with the lemmas under them. A failed proof is treated as a bug report against the code, the specification, or a missing lemma.
+5. Attack the result. Run `lake comparator --paranoid`. Try to write a wrong program that still meets each statement. Run differential tests against the original library on random and mutated inputs. Record the seed, the input count, and the failures found. Write up what the attack found as a review record in this repo.
+6. Ship it. Offer the code to the upstream project in the form that project can use: a Lean replacement library, or a Lean model plus a production implementation kept in step by differential tests, as AWS does with Cedar. Publish a page that states what was proved, what was not proved, and what a reader must still trust (the Lean kernel, compiler, runtime, hardware, and any foreign function code).
+7. Maintain it. The bar check runs in continuous integration on every change. A change that breaks a proof blocks a release until the proof is fixed. A change to the specification, or to the claims and limits on the page, voids the approval and blocks a release until a reviewer approves it.
 
 ### The verified bar
 
-A project may use the word verified in public only when all of these hold:
+A project may use the word verified in public only when all of these hold. The playbook page `playbook/verified-bar.md` says how each one is checked, and `bar/` in this repo holds the checker and the CI workflow every library repo runs.
 
-- The specification is public and was approved by a reviewer apart from the author.
-- The build has no `sorry` or `admit`.
-- `#print axioms` on each main theorem shows only the standard Lean axioms.
-- Differential tests against the original ran, and the count, seed, and result are in the repo.
-- The public page lists what is outside the proof: runtime, compiler, hardware, and any unverified parser or foreign function code.
-- A stranger can clone the repo, run one command, and re-check the proof.
+1. The specification is public, approved by a reviewer on the org's list who did not write it, and pinned. The approval records a hash of the specification, the whole project page, the programs people run, and the tests, and any later change voids it.
+2. Each public claim names the theorem behind it, and the reviewer has checked that the theorem says what the claim says.
+3. One command, `lake comparator --paranoid`, re-checks that the proofs prove exactly the approved statements, with only the standard Lean axioms, under every kernel shipped with Lean. Nothing outside the approved text and the code under proof can change what a statement means.
+4. The code that runs is the code that was proved. The programs people run call the proved functions, and project code uses no `implemented_by`, `extern`, `unsafe`, native evaluation, metaprogramming, or `axiom`, and no `sorry` or `admit` outside the statements, except for exceptions the page lists.
+5. Differential tests against the original ran on random and mutated inputs, and the oracle, seed, input count, and result are committed in the repo.
+6. The public page lists what is outside the proof: the kernel, compiler, runtime, hardware, dependencies, and any unverified code.
+7. The check runs in CI on every change, the default branch requires it, and releases are tagged only from the default branch.
 
 ## Target scoring
 
@@ -126,6 +127,8 @@ Costs to plan for: senior verifier pay (market rate is high because supply is lo
 ## Risks and the plan for each
 
 - Specification is wrong. Separate spec reviewer, adversarial review of the public page, differential tests against the original, and a standing rule that finding a spec error is a success to report, not a failure to hide.
+- A theorem states less than its claim. Every machine check passes on a statement that is too weak. The reviewer reads each statement against its claim and tries to write a wrong program that meets it. The first audit of the tar pilot found exactly this.
+- The program differs from the proof. `implemented_by`, `extern`, and native evaluation let the compiled program differ from the proved definitions with no axiom showing. Project code may not use them unless the page lists the exception.
 - Upstream says no. Talk to maintainers at step 1, before code. If they decline, publish as a separate library and keep the differential tests running against new upstream releases.
 - Lean code is too slow. Benchmark at step 6. If a replacement is too slow, ship the Cedar pattern instead: Lean model as the specification, production code in the original language, differential tests to keep them in step.
 - Trainees leave after training. Level 2 is a paid post inside the factory, and sponsor placements pay a fee that funds the next cohort.
@@ -146,7 +149,7 @@ A hybrid, with a separate company selling training and private verification, sta
 
 Days 1 to 14: appoint the director and the head of verification, publish this brief for comment, open talks with Lean FRO and CSLib maintainers so the work feeds their libraries instead of forking them.
 
-Days 15 to 30: hire or contract the two senior verifiers and the platform engineer. Pick the pilot from the score sheet and get written feedback from the tar format maintainers or the relevant upstream. Build the CI rig: proof check, `sorry` check, axiom print, differential test runner.
+Days 15 to 30: hire or contract the two senior verifiers and the platform engineer. Pick the pilot from the score sheet and get written feedback from the tar format maintainers or the relevant upstream. Build the CI rig: proof check, `sorry` check, axiom print, differential test runner. A first version is in `bar/`, built on Lean's own `lake comparator`.
 
 Days 31 to 75: run the pilot and Level 0 at the same time. Apprentice applications open on day 31, picked by a worked problem, not by a CV. The pilot squad posts a public progress note each week: what was specified, what was proved, what failed.
 
