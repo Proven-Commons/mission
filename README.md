@@ -23,6 +23,8 @@ Pilot (complete): the tar extractor lives in its own repo, [tar](https://github.
 
 Wave 1: a policy engine in the style of AWS Cedar, a reader for the SQLite file format, and a parser for the Redis protocol with a small key-value store.
 
+Wave 1, Redis (proofs done, specification review pending): a Lean parser and printer for the Redis protocol with a small key-value store lives in its own repo, [redis](https://github.com/Proven-Commons/redis). It proves that parsing what the printer wrote gives the same value back, that the parser accepts nothing else, and that a get after a set or delete behaves as specified. Its differential tests against hiredis and redis-server are recorded in that repo. It is not yet verified: a reviewer who did not write its specification must approve it first.
+
 Each project sends reusable lemmas to CSLib and Mathlib, the shared libraries for computer science and mathematics in Lean. The shared library grows. The next project starts cheaper.
 
 ## Learn here
