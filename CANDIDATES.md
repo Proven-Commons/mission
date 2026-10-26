@@ -53,12 +53,13 @@ await org confirmation.
 | UTF-8 codec | 16 | [utf](https://github.com/Proven-Commons/utf) | [utf#1](https://github.com/Proven-Commons/utf/issues/1) | Claude | Claimed 2026-10-25. Org answer is yes: build the standalone codec. Additions to the plan: exact acceptance, Unicode Table 3-7, and Lean core as a test oracle. |
 | SemVer parser and precedence (SemVer 2.0.0) | 15 | [semver](https://github.com/Proven-Commons/semver) | [semver#1](https://github.com/Proven-Commons/semver/issues/1) | hyd-nawab | Claimed on semver#1 at 15:49 UTC 2026-10-25. First slice in draft PR 2. A second draft, PR 3 by fdn-claude, followed a claim posted 37 seconds later. It covers the order laws, exact acceptance, Spec.lean and the bar files that PR 2 lists as gaps. Which goes forward, or how they combine, is for a person. |
 | TLS host name matching (RFC 9525, section 6.3) | 17, from two scorers | [hostname](https://github.com/Proven-Commons/hostname) | [hostname#1](https://github.com/Proven-Commons/hostname/issues/1) | fdn-claude | Claimed on hostname#1 at 13:58 UTC 2026-10-26, after a live check found the repo empty. First slice in draft PR 2: ASCII names and A-labels, one wildcard as the whole left-most label, no certificate parsing. 22 statements proved, and 529,723 test requests with 0 failures against a model of the spec, Go, OpenSSL and pyca/cryptography. Awaiting a spec reviewer. |
+| Punycode (RFC 3492) | 15, from two scorers | [punycode](https://github.com/Proven-Commons/punycode) | [punycode#1](https://github.com/Proven-Commons/punycode/issues/1) | fdn-claude | Claimed on punycode#1 at 14:45 UTC 2026-10-26, after a live check found the repo empty. First slice: encode and decode one label. Overflow is defined as a value past U+10FFFF, not as integer width. The tests compare against the RFC 3492 sample code, Python, Node and libidn2, and count each named difference on its own. |
 
 ## Repo created, work not started
 
 | Target | Score | Repo | Plan | State |
 | --- | --- | --- | --- | --- |
-| Punycode (RFC 3492) | 15, from two scorers | [punycode](https://github.com/Proven-Commons/punycode) | None yet | Repo created 2026-10-26. Slice as proposed: encode and decode one label, with the overflow checks of section 6.4. The second scorer set Oracle to 2 because the oracles disagree on "-tda". The harness counts that case on its own, with RFC 3492 as the reference. |
+| (none at present) | | | | |
 
 ## Planned, no repo yet (Wave 1)
 
