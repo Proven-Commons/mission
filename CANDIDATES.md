@@ -52,12 +52,13 @@ await org confirmation.
 | CBOR decoder (RFC 8949) | 13 | [cbor](https://github.com/Proven-Commons/cbor) | [cbor#1](https://github.com/Proven-Commons/cbor/issues/1) | ins-ember | Definite length items first. Scaffold and specification file planned as the first draft PR. |
 | UTF-8 codec | 16 | [utf](https://github.com/Proven-Commons/utf) | [utf#1](https://github.com/Proven-Commons/utf/issues/1) | Claude | Claimed 2026-10-25. Org answer is yes: build the standalone codec. Additions to the plan: exact acceptance, Unicode Table 3-7, and Lean core as a test oracle. |
 | SemVer parser and precedence (SemVer 2.0.0) | 15 | [semver](https://github.com/Proven-Commons/semver) | [semver#1](https://github.com/Proven-Commons/semver/issues/1) | hyd-nawab | Claimed on semver#1 at 15:49 UTC 2026-10-25. First slice in draft PR 2. A second draft, PR 3 by fdn-claude, followed a claim posted 37 seconds later. It covers the order laws, exact acceptance, Spec.lean and the bar files that PR 2 lists as gaps. Which goes forward, or how they combine, is for a person. |
+| TLS host name matching (RFC 9525, section 6.3) | 17, from two scorers | [hostname](https://github.com/Proven-Commons/hostname) | [hostname#1](https://github.com/Proven-Commons/hostname/issues/1) | fdn-claude | Claimed on hostname#1 at 13:58 UTC 2026-10-26, after a live check found the repo empty. First slice: ASCII names and A-labels, one wildcard as the whole left-most label, no certificate parsing. The plan records three choices RFC 9525 leaves open: wildcards over a public suffix, a trailing dot, and label syntax. |
 
 ## Repo created, work not started
 
 | Target | Score | Repo | Plan | State |
 | --- | --- | --- | --- | --- |
-| (none at present) | | | | |
+| Punycode (RFC 3492) | 15, from two scorers | [punycode](https://github.com/Proven-Commons/punycode) | None yet | Repo created 2026-10-26. Slice as proposed: encode and decode one label, with the overflow checks of section 6.4. The second scorer set Oracle to 2 because the oracles disagree on "-tda". The harness counts that case on its own, with RFC 3492 as the reference. |
 
 ## Planned, no repo yet (Wave 1)
 
@@ -95,20 +96,20 @@ large and a first slice would still leave most of the format outside the
 proof. Revisit it once the binary-format repos have a shared scaffold.
 
 Proposed 2026-10-25 by fdn-claude, agent for the fdn-0 account. None of
-these duplicates a repo, Wave 1, the rows above, or codec. The scores are a
-first pass from one agent and await a second scorer and org confirmation.
-The full sheet, with the reasons for each score and sources, is in the pull
-request that added these rows.
+these duplicates a repo, Wave 1, the rows above, or codec. A second scorer,
+the ahrazzle account, scored each target on its own on 2026-10-26. They
+agreed with every score but punycode's, which went from 16 to 15. The full
+sheet, the reasons for each score, the sources and the second score are in
+the pull request that added these rows. Hostname and punycode now have
+repos, so their rows have moved up.
 
 | Target | Score | Slice | Main claim | Oracle |
 | --- | --- | --- | --- | --- |
-| TLS host name matching (RFC 9525, section 6.3) | 17 (H3 R3 S3 O3 Sl3 U2) | Match a reference DNS name against a presented name: ASCII names and A-labels, one wildcard as the whole left-most label. No certificate parsing. | A wildcard matches exactly one left-most label and nothing else; two wildcards, a partial wildcard such as f*.example.com, or a wildcard outside the left-most label match nothing; ASCII case is the only difference ignored. | x509-limbo webpki cases, OpenSSL X509_check_host with no partial wildcards, Go VerifyHostname, pyca/cryptography |
-| Punycode (RFC 3492) | 16 (H2 R3 S3 O3 Sl3 U2) | Encode and decode one label, with the overflow checks of section 6.4. No IDNA mapping. | Decoding an encoding gives the code points back; the decoder accepts only the encoder's outputs, up to ASCII case; it fails at the overflow bound instead of wrapping. | RFC 3492 section 7.1 samples, Python punycode codec, npm punycode, libidn2. Python accepts "-tda" where the RFC decoder and npm punycode reject it. |
 | Bech32 and Bech32m (BIP 173, BIP 350) | 16 (H3 R2 S3 O3 Sl3 U2) | The string layer: human-readable part, separator, data, checksum, length limit, no mixed case. Segwit addresses second. | Decoding an encoding gives the parts and variant back; the decoder accepts exactly the strings the BIP rules allow; any one changed data character is caught. Level 0 pair: inserting q before a final p passes Bech32 and fails Bech32m. | BIP 173 and BIP 350 test vectors, sipa/bech32 reference code in Python, C, C++, JavaScript |
 | HPACK, stateless part (RFC 7541) | 16 (H2 R3 S3 O3 Sl3 U2) | Prefix integers (5.1), string literals with the Huffman code of Appendix B, the static table. Dynamic table second. Serves QPACK too. | Integer decoding inverts encoding for every prefix size and never reads past the end; Huffman decoding accepts exactly the encoder's outputs, which pins the padding and EOS rules. | RFC 7541 Appendix C, hpack-test-case corpus, Python hpack, Go hpack |
 | ASN.1 DER element reader (X.690) | 16 (H3 R3 S2 O3 Sl3 U2) | One DER element, nested: definite and shortest lengths, shortest tags, minimal INTEGER, BOOLEAN 00 or FF. ECDSA-Sig-Value second. | Non-malleable: writing back what the reader accepted gives the same bytes; the reader never reads past the end, and each child stays inside its parent. | Wycheproof ECDSA vectors, Go encoding/asn1 and cryptobyte, rust-asn1, OpenSSL asn1parse. Prior proofs exist in F* (ASN1*), Agda (ARMOR) and Verus (Verdict), so this is worth building only if later Lean work imports it. |
-| Lexical path cleaning (Go path.Clean rules) | 15 (H3 R3 S2 O3 Sl3 U1) | Clean a POSIX path string with Go's four rules. Could be a module that tar and zip import, not a repo. | Cleaning is idempotent; the result has no "." or empty element and ".." only at the start; a cleaned relative path that does not start with ".." stays inside any folder it is joined to. | Go path.Clean and its tests, Python posixpath.normpath, Node path.posix.normalize. They differ on a leading "//", so the spec must choose. |
-| URI reference resolution (RFC 3986, section 5.2) | 14 (H3 R3 S2 O2 Sl3 U1) | Split a reference into five parts, merge paths, remove dot segments. Full grammar check second. | remove_dot_segments leaves no "." or ".." and is idempotent; resolving against an absolute base gives an absolute URI; all worked examples of section 5.4 hold. | RFC 3986 section 5.4, uriparser, Go URL.ResolveReference, Python urljoin with a mode for its reading of "http:g" |
+| Lexical path cleaning (Go path.Clean rules) | 15 (H3 R3 S2 O3 Sl3 U1) | Clean a POSIX path string with Go's four rules. Could be a module that tar and zip import, not a repo. Each of them has its own path gate today, and the second scorer leans to the module. Placement is for the org. | Cleaning is idempotent; the result has no "." or empty element and ".." only at the start; a cleaned relative path that does not start with ".." stays inside any folder it is joined to. | Go path.Clean and its tests, Python posixpath.normpath, Node path.posix.normalize. They differ on a leading "//", so the spec must choose. |
+| URI reference resolution (RFC 3986, section 5.2) | 14 (H3 R3 S2 O2 Sl3 U1) | Split a reference into five parts, merge paths, remove dot segments. Section 5.2 leaves %XX escapes as written, so this slice needs no escape handling. Normalization (section 6.2.2) comes later and would import percent-encoding from codec. Full grammar check second. | remove_dot_segments leaves no "." or ".." and is idempotent; resolving against an absolute base gives an absolute URI; all worked examples of section 5.4 hold. | RFC 3986 section 5.4, uriparser, Go URL.ResolveReference, Python urljoin with a mode for its reading of "http:g" |
 
 Kept on record from the same sheet, not proposed now: WebAssembly module
 framing, scored 13. The harm in a framing slice is low, and Vest (Verus)
