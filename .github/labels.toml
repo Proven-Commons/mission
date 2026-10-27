@@ -1,0 +1,33 @@
+# mission's own labels under the labelling standard (LABELS-STANDARD.md in Proven-Commons/.github): area: labels
+# only, each with the paths it covers. A pull request touching those paths gets the label from the triage bot.
+version = 1
+
+[[labels]]
+name = "area: bar checker"
+description = "The verified-bar checker, its CI workflow and the library template"
+paths = ["bar/", ".github/workflows/verified-bar.yml", ".github/workflows/ci.yml"]
+
+[[labels]]
+name = "area: playbook"
+description = "The playbook: how a project moves through the factory"
+paths = ["playbook/"]
+
+[[labels]]
+name = "area: reviews"
+description = "Review records: what an attack on a project found"
+paths = ["reviews/"]
+
+[[labels]]
+name = "area: brief"
+description = "The founding brief and the README: targets, academy, money, plan"
+paths = ["FOUNDING-BRIEF.md", "README.md"]
+
+[[labels]]
+name = "area: website"
+description = "The public website"
+paths = ["index.html", "assets/", "404.html", "robots.txt", "sitemap.xml"]
+
+[[labels]]
+name = "area: forum"
+description = "The internal board"
+paths = ["FORUM.md", ".github/forum/", ".github/DISCUSSION_TEMPLATE/"]
