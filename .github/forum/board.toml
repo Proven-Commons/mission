@@ -1,0 +1,197 @@
+# Proven Commons internal board: Discussions on Proven-Commons/mission, about the programme itself.
+# The forum standard (FORUM-STANDARD.md in Proven-Commons/.github) describes every field; FORUM.md says the same
+# in words, and names everyone who holds a seat. A seat changes only by pull request, approved by an owner.
+# The tiers follow the academy ladder: graduation at each level is merged work that a computer checked.
+
+version = 1
+board = "internal"
+repository = "Proven-Commons/mission"
+public = true
+name = "Proven Commons internal board"
+
+[gate]
+mode = "enforce"
+count_orgs = ["Proven-Commons"]
+
+[groups]
+# Level 2: people who own a module that passed the verified bar with a separate reviewer.
+verifiers = []
+# Level 3: people who write and review specifications, run a squad and teach Level 1.
+spec-leads = []
+# The director and the head of verification once they are named (FOUNDING-BRIEF.md, Decisions needed now, 2), and the owners until then.
+stewards = ["ahrazzle"]
+
+# Tiers, lowest first. Anyone who reaches a tier may also post wherever a lower one may.
+[[tiers]]
+id = "apprentice"
+name = "Apprentice (Level 1)"
+merged_prs = 1
+associations = ["OWNER", "MEMBER", "COLLABORATOR"]
+
+[[tiers]]
+id = "verifier"
+name = "Verifier (Level 2)"
+merged_prs = 15
+groups = ["verifiers"]
+
+[[tiers]]
+id = "spec-lead"
+name = "Spec Lead and Mentor (Level 3)"
+groups = ["spec-leads"]
+
+[[tiers]]
+id = "stewards"
+name = "Steward"
+groups = ["stewards"]
+
+# ---------------------------------------------------------------- Orientation
+
+[[categories]]
+slug = "announcements"
+name = "Announcements"
+emoji = ":mega:"
+format = "announcement"
+section = "Orientation"
+description = "News about the programme itself from its stewards. Anyone replies."
+
+[[categories]]
+slug = "floor"
+name = "Floor"
+emoji = ":microphone:"
+format = "open"
+section = "Orientation"
+description = "Open to everyone: anything about how Proven Commons is run, and the open answer to every gated room."
+
+[[categories]]
+slug = "decisions"
+name = "Decisions"
+emoji = ":white_check_mark:"
+format = "announcement"
+section = "Orientation"
+description = "One thread per decision: what, who decided, why, and the issue or pull request that carries it out."
+form = true
+
+# ---------------------------------------------------------------- Open rooms
+
+[[categories]]
+slug = "direction"
+name = "Direction"
+emoji = ":compass:"
+format = "open"
+section = "Open rooms"
+description = "Targets, waves and priorities: what the factory verifies next, and why."
+
+[[categories]]
+slug = "structure"
+name = "Structure"
+emoji = ":building_construction:"
+format = "open"
+section = "Open rooms"
+description = "Squads, roles, the academy ladder, the playbook, and how the programme is organised."
+
+[[categories]]
+slug = "verified-bar"
+name = "Verified bar"
+emoji = ":balance_scale:"
+format = "open"
+section = "Open rooms"
+description = "A change to the verified bar. Anyone may propose one; the head of verification approves it."
+form = true
+
+[[categories]]
+slug = "proposals"
+name = "Proposals"
+emoji = ":memo:"
+format = "open"
+section = "Open rooms"
+description = "A written proposal for a decision: the change, the reasons, and who would carry it out."
+form = true
+
+[[categories]]
+slug = "funding"
+name = "Funding"
+emoji = ":moneybag:"
+format = "open"
+section = "Open rooms"
+description = "Grants, sponsors, costs and the split between public and paid work, reported in the open."
+
+[[categories]]
+slug = "progress-notes"
+name = "Progress notes"
+emoji = ":notebook:"
+format = "open"
+section = "Open rooms"
+description = "Each squad's weekly public note: what was specified, what was proved, what failed. Anyone replies."
+form = true
+start = "apprentice"
+fallback = "floor"
+
+[[categories]]
+slug = "retros"
+name = "Retros"
+emoji = ":arrows_counterclockwise:"
+format = "open"
+section = "Open rooms"
+description = "Looking back on a project or a cohort: time, cost, what went wrong, and what changes."
+
+[[categories]]
+slug = "polls"
+name = "Polls"
+emoji = ":ballot_box:"
+format = "poll"
+section = "Open rooms"
+description = "A quick poll on how the programme is run. It informs a decision; it does not make one."
+
+# ---------------------------------------------------------------- Apprentices
+
+[[categories]]
+slug = "workshop"
+name = "Workshop"
+emoji = ":hammer_and_wrench:"
+format = "open"
+section = "Apprentices"
+description = "For people with merged work: who owns which module, pairing, and unblocking each other."
+start = "apprentice"
+reply = "apprentice"
+fallback = "floor"
+
+# ---------------------------------------------------------------- Verifiers
+
+[[categories]]
+slug = "review-desk"
+name = "Review desk"
+emoji = ":mag:"
+format = "open"
+section = "Verifiers"
+description = "Reviewer assignment and specification approvals. Nobody approves a specification they wrote."
+start = "verifier"
+reply = "verifier"
+fallback = "floor"
+
+# ---------------------------------------------------------------- Spec leads and mentors
+
+[[categories]]
+slug = "mentors"
+name = "Mentors"
+emoji = ":mortar_board:"
+format = "open"
+section = "Spec leads and mentors"
+description = "Cohorts, curriculum, the mentor roster and graduate records."
+start = "spec-lead"
+reply = "spec-lead"
+fallback = "floor"
+
+# ---------------------------------------------------------------- Stewards
+
+[[categories]]
+slug = "stewards"
+name = "Stewards"
+emoji = ":classical_building:"
+format = "open"
+section = "Stewards"
+description = "The programme's leadership threads, in public. Stewards open them, spec leads reply. People only."
+start = "stewards"
+reply = "spec-lead"
+fallback = "floor"
+floor = true
+agents = false

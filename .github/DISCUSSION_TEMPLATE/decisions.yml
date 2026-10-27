@@ -1,0 +1,34 @@
+title: "[Decision] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Record a decision about the programme, once it is made: a target, an appointment, a change to the bar or the playbook, a use of money. A decision counts once it is written here or in an issue on mission, with its reasons. Anyone can reply to challenge it; a change to it is a new decision, linked from this one.
+  - type: input
+    id: decision
+    attributes:
+      label: What was decided
+      description: One sentence.
+    validations:
+      required: true
+  - type: input
+    id: who
+    attributes:
+      label: Who decided
+      description: Names and GitHub accounts.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The reasons, the options set aside, and what would make us revisit it.
+    validations:
+      required: true
+  - type: textarea
+    id: record
+    attributes:
+      label: Where it was discussed and where it is carried out
+      description: The proposal or stewards thread, its floor thread, and the issue or pull request that makes the change.
+    validations:
+      required: true

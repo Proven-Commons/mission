@@ -1,0 +1,62 @@
+name: forum
+# The forum standard's one workflow (FORUM-STANDARD.md in the organisation's .github repository).
+#
+# check: on a change to the board's manifest, forms, FORUM.md or the gate, check that they agree and run
+#        the gate's tests. No network.
+# gate:  on a new thread or reply, apply .github/forum/board.toml: a thread opened by someone below a
+#        category's tier moves to its open fallback, a reply from someone below it is hidden (never deleted),
+#        and the gate says why in the thread. Posts the gate makes itself trigger no further run.
+#
+# Untrusted text (titles, bodies, logins) reaches the gate only as JSON in the event file; nothing from the
+# event is put into a shell command. A private organisation that counts merged pull requests across its
+# private repositories adds a FORUM_SEARCH_TOKEN secret with read access to them; nothing else needs one.
+on:
+  discussion:
+    types: [created]
+  discussion_comment:
+    types: [created]
+  pull_request:
+    paths: ['.github/forum/**', '.github/DISCUSSION_TEMPLATE/**', '.github/workflows/forum.yml', 'FORUM.md']
+  push:
+    branches: [main]
+    paths: ['.github/forum/**', '.github/DISCUSSION_TEMPLATE/**', '.github/workflows/forum.yml', 'FORUM.md']
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  check:
+    if: github.event_name != 'discussion' && github.event_name != 'discussion_comment'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Manifest, forms and FORUM.md agree
+        run: python3 .github/forum/gate.py check
+      - name: Gate tests (no network)
+        run: python3 .github/forum/test_gate.py
+
+  gate:
+    if: github.event_name == 'discussion' || github.event_name == 'discussion_comment'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: forum-gate-${{ github.event.discussion.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      discussions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/forum
+      - name: Apply the board's rules to the new post
+        run: python3 .github/forum/gate.py event
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORUM_SEARCH_TOKEN: ${{ secrets.FORUM_SEARCH_TOKEN }}

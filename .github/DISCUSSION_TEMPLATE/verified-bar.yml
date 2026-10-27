@@ -1,0 +1,34 @@
+title: "[Bar] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose a change to [the verified bar](https://github.com/Proven-Commons/mission/blob/main/playbook/verified-bar.md). Anyone may propose one. The head of verification approves it, and the change lands by pull request to the README, the founding brief, the playbook and `bar/` together. A bar that is too weak is the worst failure this programme can have, so say what a weaker or stronger bar would let through.
+  - type: input
+    id: item
+    attributes:
+      label: Which item
+      description: The number of the item, or "a new item".
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: The change
+      description: The text as it is now, and as it would be.
+    validations:
+      required: true
+  - type: textarea
+    id: case
+    attributes:
+      label: The case for it
+      description: A project, a statement or a program that the current bar gets wrong, and how the new text would catch it.
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: How it is checked
+      description: What the checker in bar/ would do, and what it costs a project to meet.
+    validations:
+      required: true

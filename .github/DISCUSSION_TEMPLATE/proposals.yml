@@ -1,0 +1,32 @@
+title: "[Proposal] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose a decision about how Proven Commons is run: a target, a role, a process, a cohort, a use of money. Anyone can propose. The stewards decide, in a stewards thread or an issue on mission, and record the outcome in Decisions. A library to verify goes to Library proposals on the main board instead.
+  - type: input
+    id: change
+    attributes:
+      label: The change
+      description: One sentence.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What is wrong or missing now, and what the change would improve.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How it would work
+      description: Exactly what changes, in which files or settings, who does what, and what it costs.
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Who would carry it out
+      description: A named person. Leave empty if you are proposing it for someone else to take on.

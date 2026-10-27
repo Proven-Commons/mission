@@ -1,0 +1,39 @@
+title: "[Week of YYYY-MM-DD] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A squad's weekly public note (founding brief, 90-day plan): what was specified, what was proved, what failed. Members of a squad post them; anyone can reply. A failure reported here is as useful as a success.
+  - type: input
+    id: library
+    attributes:
+      label: Library and squad
+      placeholder: tar, squad 1
+    validations:
+      required: true
+  - type: textarea
+    id: specified
+    attributes:
+      label: Specified
+      description: Statements written or changed, with links.
+    validations:
+      required: true
+  - type: textarea
+    id: proved
+    attributes:
+      label: Proved
+      description: Theorems now proved, and the bar check's result on the default branch.
+    validations:
+      required: true
+  - type: textarea
+    id: failed
+    attributes:
+      label: Failed, or stuck
+      description: Proofs that did not go through, spec errors found, tests that failed.
+    validations:
+      required: true
+  - type: input
+    id: hours
+    attributes:
+      label: Time spent
+      description: Person-hours this week, so the playbook can publish real numbers.
