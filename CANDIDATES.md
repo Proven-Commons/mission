@@ -56,12 +56,14 @@ await org confirmation.
 | Punycode (RFC 3492) | 15, from two scorers | [punycode](https://github.com/Proven-Commons/punycode) | [punycode#1](https://github.com/Proven-Commons/punycode/issues/1) | fdn-claude | Claimed on punycode#1 at 14:45 UTC 2026-10-26, after a live check found the repo empty. First slice in draft PR 2: encode and decode one label, with unbounded numbers and a decoder that fails past U+10FFFF. 9 statements proved, among them exactness against section 3 and uniqueness up to the case of digits, and 319,757 test inputs with 0 failures against a model, the RFC 3492 sample code, Python, Node and libidn2. Awaiting a spec reviewer. |
 | Bech32 and Bech32m (BIP 173, BIP 350) | 16, from two scorers | [bech32](https://github.com/Proven-Commons/bech32) | [bech32#1](https://github.com/Proven-Commons/bech32/issues/1) | fdn-claude | Claimed on bech32#1 at 15:22 UTC 2026-10-26, after a live check found the repo empty. First slice in draft PR 2: the string layer, both variants, with the 90-character limit. 14 statements proved, among them exact decoding, the round trips, one changed data character always caught, and the q insertion both ways. 1,016,772 test inputs with 0 failures against a model, the sipa/bech32 reference Python and C, npm bech32, Go btcutil/bech32 and Rust bech32. Segwit addresses second. Awaiting a spec reviewer. |
 | HPACK, stateless part (RFC 7541) | 16, from two scorers | [hpack](https://github.com/Proven-Commons/hpack) | [hpack#1](https://github.com/Proven-Commons/hpack/issues/1) | fdn-claude | Claimed in mission PR 21 on 2026-10-27, and on hpack#1 once the repo was made. First slice in draft PR 2: integers with an N-bit prefix, string literals with the Huffman code, and the static table. Its statements are proved, among them that the integer, Huffman and string decoders each accept exactly what the RFC's encoders write, and that the Huffman decoder rejects EOS and bad padding. 311,294 test inputs with 0 failures against a model of the RFC, Python hpack, Go hpack and nghttp2. The one named difference: all three read integers written in more octets than they need, which this library refuses. Dynamic table second. |
+| ASN.1 DER element reader (X.690) | 16, from two scorers | [der](https://github.com/Proven-Commons/der) | [der#1](https://github.com/Proven-Commons/der/issues/1) | fdn-claude | Claimed on der#1 on 2026-10-27. First slice built, a draft PR to follow once its tests are in: one element nested to any depth, tag numbers of any size, lengths in the fewest octets, the form of every universal type, and the contents of BOOLEAN, INTEGER and NULL. Its statements are proved, among them that the reader accepts exactly DER encodings, that each element and each integer has one encoding, and that the writer writes DER. |
 
 ## Repo created, work not started
 
 | Target | Score | Repo | Plan | State |
 | --- | --- | --- | --- | --- |
-| (none at present) | | | | |
+| Lexical path cleaning (Go path.Clean rules) | 15, from two scorers | [path](https://github.com/Proven-Commons/path) | [path#1](https://github.com/Proven-Commons/path/issues/1) | Plan issue unclaimed. Could instead be a module that tar and zip import; placement is for the org. |
+| URI reference resolution (RFC 3986, section 5.2) | 14, from two scorers | [uri](https://github.com/Proven-Commons/uri) | [uri#1](https://github.com/Proven-Commons/uri/issues/1) | Plan issue unclaimed. |
 
 ## Planned, no repo yet (Wave 1)
 
@@ -103,16 +105,9 @@ these duplicates a repo, Wave 1, the rows above, or codec. A second scorer,
 the ahrazzle account, scored each target on its own on 2026-10-26. They
 agreed with every score but punycode's, which went from 16 to 15. The full
 sheet, the reasons for each score, the sources and the second score are in
-the pull request that added these rows. Hostname, punycode and bech32 now
-have repos, so their rows have moved up.
-
-| Target | Score | Slice | Main claim | Oracle |
-| --- | --- | --- | --- | --- |
-| ASN.1 DER element reader (X.690) | 16 (H3 R3 S2 O3 Sl3 U2) | One DER element, nested: definite and shortest lengths, shortest tags, minimal INTEGER, BOOLEAN 00 or FF. ECDSA-Sig-Value second. | Non-malleable: writing back what the reader accepted gives the same bytes; the reader never reads past the end, and each child stays inside its parent. | Wycheproof ECDSA vectors, Go encoding/asn1 and cryptobyte, rust-asn1, OpenSSL asn1parse. Prior proofs exist in F* (ASN1*), Agda (ARMOR) and Verus (Verdict), so this is worth building only if later Lean work imports it. |
-| Lexical path cleaning (Go path.Clean rules) | 15 (H3 R3 S2 O3 Sl3 U1) | Clean a POSIX path string with Go's four rules. Could be a module that tar and zip import, not a repo. Each of them has its own path gate today, and the second scorer leans to the module. Placement is for the org. | Cleaning is idempotent; the result has no "." or empty element and ".." only at the start; a cleaned relative path that does not start with ".." stays inside any folder it is joined to. | Go path.Clean and its tests, Python posixpath.normpath, Node path.posix.normalize. They differ on a leading "//", so the spec must choose. |
-| URI reference resolution (RFC 3986, section 5.2) | 14 (H3 R3 S2 O2 Sl3 U1) | Split a reference into five parts, merge paths, remove dot segments. Section 5.2 leaves %XX escapes as written, so this slice needs no escape handling. Normalization (section 6.2.2) comes later and would import percent-encoding from codec. Full grammar check second. | remove_dot_segments leaves no "." or ".." and is idempotent; resolving against an absolute base gives an absolute URI; all worked examples of section 5.4 hold. | RFC 3986 section 5.4, uriparser, Go URL.ResolveReference, Python urljoin with a mode for its reading of "http:g" |
-
-HPACK now has a repo, and its row has moved up.
+the pull request that added these rows. Every target on it now has a repo:
+hostname, punycode, bech32, HPACK, DER, path and URI. Their rows have moved
+up.
 
 Kept on record from the same sheet, not proposed now: WebAssembly module
 framing, scored 13. The harm in a framing slice is low, and Vest (Verus)
