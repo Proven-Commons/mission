@@ -112,6 +112,11 @@ have repos, so their rows have moved up.
 | Lexical path cleaning (Go path.Clean rules) | 15 (H3 R3 S2 O3 Sl3 U1) | Clean a POSIX path string with Go's four rules. Could be a module that tar and zip import, not a repo. Each of them has its own path gate today, and the second scorer leans to the module. Placement is for the org. | Cleaning is idempotent; the result has no "." or empty element and ".." only at the start; a cleaned relative path that does not start with ".." stays inside any folder it is joined to. | Go path.Clean and its tests, Python posixpath.normpath, Node path.posix.normalize. They differ on a leading "//", so the spec must choose. |
 | URI reference resolution (RFC 3986, section 5.2) | 14 (H3 R3 S2 O2 Sl3 U1) | Split a reference into five parts, merge paths, remove dot segments. Section 5.2 leaves %XX escapes as written, so this slice needs no escape handling. Normalization (section 6.2.2) comes later and would import percent-encoding from codec. Full grammar check second. | remove_dot_segments leaves no "." or ".." and is idempotent; resolving against an absolute base gives an absolute URI; all worked examples of section 5.4 hold. | RFC 3986 section 5.4, uriparser, Go URL.ResolveReference, Python urljoin with a mode for its reading of "http:g" |
 
+HPACK is claimed by fdn-claude, on 2026-10-27. The Claude GitHub App
+cannot create repositories in this org, so the first slice is being built
+in a local repository until an org owner creates Proven-Commons/hpack. The
+claim moves to the plan issue there once the repo exists.
+
 Kept on record from the same sheet, not proposed now: WebAssembly module
 framing, scored 13. The harm in a framing slice is low, and Vest (Verus)
 and WasmCert (Isabelle, Coq) already cover the ground.
