@@ -8,20 +8,23 @@ A finished project publishes the library, the specification, a proof a computer 
 
 ## The verified bar
 
-A project may use the word verified in public only when all of these hold:
+A project may use the word verified in public only when all of these hold. The [playbook page](playbook/verified-bar.md) says how each one is checked, and [bar/](bar/) holds the checker, the CI workflow, and a template for a new library.
 
-- The specification is public and was approved by a reviewer apart from the author.
-- The build has no `sorry` or `admit`.
-- `#print axioms` on each main theorem shows only the standard Lean axioms.
-- Differential tests against the original ran, and the count, seed, and result are in the repo.
-- The public page lists what is outside the proof: runtime, compiler, hardware, and any unverified code.
-- A stranger can clone the repo, run one command, and re-check the proof.
+1. The specification is public, approved by a reviewer on the org's list who did not write it, and pinned. The approval records a hash of the specification, the whole project page, the programs people run, and the tests, and any later change voids it.
+2. Each public claim names the theorem behind it, and the reviewer has checked that the theorem says what the claim says.
+3. One command, `lake comparator --paranoid`, re-checks that the proofs prove exactly the approved statements, with only the standard Lean axioms, under every kernel shipped with Lean. Nothing outside the approved text and the code under proof can change what a statement means.
+4. The code that runs is the code that was proved. The programs people run call the proved functions, and project code uses no `implemented_by`, `extern`, `unsafe`, native evaluation, metaprogramming, or `axiom`, and no `sorry` or `admit` outside the statements, except for exceptions the page lists.
+5. Differential tests against the original ran on random and mutated inputs, and the oracle, seed, input count, and result are committed in the repo.
+6. The public page lists what is outside the proof: the kernel, compiler, runtime, hardware, dependencies, and any unverified code.
+7. The check runs in CI on every change, the default branch requires it, and releases are tagged only from the default branch.
 
 ## First projects
 
-Pilot (complete): the tar extractor lives in its own repo, [tar](https://github.com/Proven-Commons/tar). It has a proved rule that no file in an archive can be written outside the destination folder. Its project page states what is proved, what is not proved, and the recorded test results.
+Pilot (built, not yet verified): the tar extractor lives in its own repo, [tar](https://github.com/Proven-Commons/tar). Its goal is a proved rule that no file in an archive can be written outside the destination folder. Its proofs check, but the [bar audit of 2026-10-24](reviews/tar/2026-10-24-bar-audit.md) found that the main theorem states less than that rule, that two statements under "What is not proved" on its project page are false, and that three of the six items of the first version of the bar are not yet fully met. The audit lists the fixes.
 
 Wave 1: a policy engine in the style of AWS Cedar, a reader for the SQLite file format, and a parser for the Redis protocol with a small key-value store.
+
+Wave 1, Redis (proofs done, specification review pending): a Lean parser and printer for the Redis protocol with a small key-value store lives in its own repo, [redis](https://github.com/Proven-Commons/redis). It proves that parsing what the printer wrote gives the same value back, that the parser accepts nothing else, and that a get after a set or delete behaves as specified. Its differential tests against hiredis and redis-server are recorded in that repo. It is not yet verified: a reviewer who did not write its specification must approve it first.
 
 Candidate list: [CANDIDATES.md](CANDIDATES.md) holds every target, its score, its repo and plan, who claimed it, and its state. It is updated as targets ship and new candidates are proposed.
 
@@ -38,7 +41,7 @@ Graduation at each level is merged work that a computer checked. That record is 
 
 ## Read more
 
-See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan.
+See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
 
 ## Website
 

@@ -1,0 +1,48 @@
+# Read by bar/check.py in Proven-Commons/mission.
+# See playbook/verified-bar.md there for what each field means.
+
+[project]
+name = "clamp"
+# "in-progress" until every bar item passes, then "verified".
+status = "in-progress"
+# The public project page.
+page = "README.md"
+# GitHub handles of everyone who wrote the specification.
+spec_authors = ["example-author"]
+# The programs people run. The reviewer checks that they call the proved
+# functions, so a change to them voids the approval.
+entry_points = ["Main.lean"]
+
+[spec]
+# What a reviewer approves, together with the whole page named above.
+# Spec.lean is the challenge module named in comparator.json.
+files = ["SPEC.md", "Spec.lean"]
+# The code under proof: the definitions the statements are about. Any
+# other project definition a statement uses must sit in the spec files,
+# so that the approval fixes what the statement means.
+code = ["Clamp.clamp"]
+
+# Add one entry per approval, in the pull request the reviewer approves.
+# `sha256` is what `python3 check.py --spec-hash <repo>` prints for the
+# reviewed text. Any later change to that text voids the approval.
+#
+# [[spec.approval]]
+# reviewer = "github-handle"
+# date = "2026-11-02"
+# sha256 = "..."
+# record = "https://github.com/Proven-Commons/<repo>/pull/<n>"
+
+[tests]
+results = "tests/TEST-RESULTS.md"
+command = "python3 tests/run_tests.py"
+# The test generator. The reviewer checks that its inputs reach the cases
+# the claims depend on, so a change to it voids the approval.
+files = ["tests/run_tests.py"]
+
+# Exceptions to the source rule, one entry per file and feature. Each
+# file must also be named under "What you must trust" on the page.
+#
+# [[trusted]]
+# file = "Clamp/Ffi.lean"
+# feature = "extern"
+# reason = "..."
