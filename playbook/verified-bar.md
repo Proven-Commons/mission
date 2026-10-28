@@ -6,7 +6,7 @@ A project may use the word verified in public only when every item below holds. 
 
 ## The items
 
-1. **The specification is public, approved by a reviewer apart from the author, and pinned.** The specification is `SPEC.md` in plain words and a Lean file of theorem statements with `sorry` where the proofs go, called the challenge file. A reviewer on the org's list of spec reviewers, who wrote neither, approves them. The approval also covers `comparator.json`, the programs people run, the test generator, the list of code under proof, and the whole project page, since a claim anywhere on the page is a public claim. The approval is the reviewer's approving review of the GitHub pull request that records it in `bar.toml`, with the SHA-256 of what was approved. Any later change to any of it voids the approval until a reviewer approves the new text.
+1. **The specification is public, approved by a reviewer apart from the author, and pinned.** The specification is `SPEC.md` in plain words and a Lean file of theorem statements with `sorry` where the proofs go, called the challenge file. An independent current maintainer of the owning repository approves them. The reviewer must have write, maintain or admin repository access, and must have neither authored nor committed the spec. No fixed roster is used. The approval also covers `comparator.json`, the programs people run, the test generator, the list of code under proof, and the whole project page, since a claim anywhere on the page is a public claim. The approval is the reviewer's approving review of the GitHub pull request that records it in `bar.toml`, with the SHA-256 of what was approved. Any later change to any of it voids the approval until a reviewer approves the new text.
 
 2. **Each public claim names the theorem behind it, and the theorem says what the claim says.** What is proved is a table of claims in plain words, each with its theorem. The reviewer reads each statement against its claim and tries to write a wrong program that still meets the statement. If one exists, the statement is too weak. A safety statement also holds for a program that does nothing, so the specification pairs each one with a statement that such a program fails, or the page says that usefulness rests on tests alone.
 
@@ -33,7 +33,7 @@ A run exits 1 when an item fails, or when `bar.toml` says `verified` and any ite
 
 | Item | What the machine checks | What only a person can judge |
 |------|-------------------------|------------------------------|
-| 1 | The recorded hash equals the hash of what the approval covers now. The reviewer is on `bar/reviewers.toml` in this repo, is not a listed spec author, and is not the GitHub author of any commit to the spec files. GitHub shows the reviewer's approving review of the pull request that added this approval to `bar.toml`, at a commit where the covered text had this same hash. | Whether the specification is right. |
+| 1 | The recorded hash equals the hash of what the approval covers now. The reviewer currently has write, maintain or admin access to the owning repository, is not any listed spec author, and is not an author or committer of any commit to the spec files or the author of the approval pull request. GitHub shows the reviewer's approving review of the pull request that added this approval to `bar.toml`, on its current head, where the covered text has this same hash. A later request for changes or dismissal invalidates an earlier approval. | Whether the specification is right. |
 | 2 | Every theorem in `comparator.json` is named under What is proved. | Whether each statement says what its claim says, whether a wrong program can meet it, and whether a program that does nothing can. |
 | 3 | `lake comparator --paranoid` passes. Only the three standard axioms are permitted. The challenge file is one of the spec files, and `comparator.json` names every theorem in it. A walk over each statement, in a sandbox, finds no project definition or instance outside the spec files and the code under proof, and finds some code under proof. The toolchain is pinned. | Whether the list of code under proof is right. |
 | 4 | No forbidden feature or metaprogramming appears outside comments and strings, and `lakefile.toml` uses only allowed keys, except for listed exceptions. It lists the instance declarations outside the challenge file. | Whether the programs people run call the proved functions, and whether an instance changes what a statement means. |
@@ -97,3 +97,8 @@ Lean 4.35 ships the tools this bar rests on: `lake comparator` and five kernels 
 - Whether the specification is the right one. That stays a person's judgment, which is why the reviewer must not be the author.
 - Speed.
 - The checker itself, and this repo. Every library runs the checker from here, so this repo's main branch needs the same protection as a release, and each library pins the version it runs.
+
+Choose the spec reviewer for each piece of work from the repository's
+current maintainers. A maintainer has write, maintain or admin permission.
+The checker reads that permission live; a fixed list in mission does not
+grant review authority. Unknown or unreadable permissions do not pass.

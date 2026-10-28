@@ -23,6 +23,9 @@ files = ["SPEC.md", "Spec.lean"]
 code = ["Clamp.clamp"]
 
 # Add one entry per approval, in the pull request the reviewer approves.
+# Choose an independent current maintainer dynamically, not from a roster.
+# The reviewer must approve the current head and must not be a spec author
+# or committer, or the author of this approval pull request.
 # `sha256` is what `python3 check.py --spec-hash <repo>` prints for the
 # reviewed text. Any later change to that text voids the approval.
 #
