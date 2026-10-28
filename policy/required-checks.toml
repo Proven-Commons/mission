@@ -1,0 +1,127 @@
+version = 1
+owner = "Proven-Commons"
+
+# Each library waits until its bar workflow and check run exist on main.
+# No setting is applied by reading this file or running the planner.
+[defaults]
+minimum_reviews = 1
+enforce_admins = true
+workflow = ".github/workflows/bar.yml"
+contexts = ["bar / bar"]
+
+[[repository]]
+name = "mission"
+workflow = ".github/workflows/ci.yml"
+contexts = ["self-test", "lean-self-test", "template / bar"]
+
+[[repository]]
+name = "tar"
+deferred = "Wait for Set B PRs #4-6 and its bar workflow to land on main."
+
+[[repository]]
+name = "bencode"
+
+[[repository]]
+name = "codec"
+
+[[repository]]
+name = "csv"
+
+[[repository]]
+name = "dns"
+
+[[repository]]
+name = "ip"
+
+[[repository]]
+name = "json"
+
+[[repository]]
+name = "pep440"
+
+[[repository]]
+name = "png"
+
+[[repository]]
+name = "protobuf"
+
+[[repository]]
+name = "rfc"
+
+[[repository]]
+name = "semver"
+
+[[repository]]
+name = "toml"
+
+[[repository]]
+name = "utf"
+
+[[repository]]
+name = "uuid"
+
+[[repository]]
+name = "bech32"
+
+[[repository]]
+name = "cbor"
+
+[[repository]]
+name = "hostname"
+
+[[repository]]
+name = "http"
+
+[[repository]]
+name = "punycode"
+
+[[repository]]
+name = "cedar"
+
+[[repository]]
+name = "hpack"
+
+[[repository]]
+name = "der"
+
+[[repository]]
+name = "messagepack"
+
+[[repository]]
+name = "zip"
+
+[[repository]]
+name = "redis"
+
+[[repository]]
+name = "websocket"
+
+[[repository]]
+name = "sqlite"
+
+[[repository]]
+name = "path"
+
+[[repository]]
+name = "ssh"
+
+[[repository]]
+name = "xml"
+
+[[repository]]
+name = "clienthello"
+
+[[repository]]
+name = "dhcpv4"
+
+[[repository]]
+name = "ntp"
+
+[[repository]]
+name = "mqtt"
+
+[[repository]]
+name = "jws"
+
+[[repository]]
+name = "uri"
