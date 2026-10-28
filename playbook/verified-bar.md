@@ -50,8 +50,8 @@ Copy [bar/template](../bar/template) to start. It passes every item except the a
 - `lean-toolchain` and `lake-manifest.json`, so `lake comparator` builds what was checked.
 - `lakefile.toml`: the libraries and the executable, and nothing else.
 - The code under proof, for example `Clamp.lean`.
-- The challenge file, `Spec.lean`: the statements, with `sorry`, and any definition they need besides the code under proof.
-- `Proofs.lean`: the proofs, under the same names.
+- The challenge file, `Clamp/Spec.lean`: the statements, with `sorry`, and any definition they need besides the code under proof.
+- `Clamp/Proofs.lean`: the proofs, under the same names.
 - `comparator.json`: the challenge and solution modules, every theorem in the challenge file, and the three permitted axioms.
 - `SPEC.md`: the specification in plain words, including a table from each property to its theorem.
 - `bar.toml`: the project's status, its page, its spec authors and files, its entry points, the code under proof, each approval, its tests, and any exception to item 4.
