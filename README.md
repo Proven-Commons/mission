@@ -41,6 +41,8 @@ Graduation at each level is merged work that a computer checked. That record is 
 
 ## Read more
 
+The [round four and five candidate scores](research/candidate-rounds-four-five.md) preserve both assessments and their differences.
+
 See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
 
 ## Website
