@@ -41,6 +41,8 @@ Graduation at each level is merged work that a computer checked. That record is 
 
 ## Read more
 
+Original code and documents use [Apache-2.0](LICENSE). The [licensing policy](LICENSE-POLICY.md) explains contributor ownership and outside material.
+
 See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
 
 ## Website

@@ -48,7 +48,8 @@ The person checks happen once, at approval, and the hash pins everything that pe
 Copy [bar/template](../bar/template) to start. It passes every item except the approval and the branch rule, which people supply.
 
 - `lean-toolchain` and `lake-manifest.json`, so `lake comparator` builds what was checked.
-- `lakefile.toml`: the libraries and the executable, and nothing else.
+- `lakefile.toml`: the libraries, the executable and `license = "Apache-2.0"`, and nothing else.
+- `LICENSE`: the unmodified Apache-2.0 text.
 - The code under proof, for example `Clamp.lean`.
 - The challenge file, `Spec.lean`: the statements, with `sorry`, and any definition they need besides the code under proof.
 - `Proofs.lean`: the proofs, under the same names.
