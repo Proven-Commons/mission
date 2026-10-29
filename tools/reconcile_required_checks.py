@@ -65,7 +65,10 @@ def plan_repo(api, owner, desired):
     if desired.get("deferred"):
         return dict(result, state="deferred", reason=desired["deferred"])
     base = f"repos/{owner}/{name}"
-    info = api.get(base)
+    try:
+        info = api.get(base)
+    except Missing:
+        return dict(result, state="deferred", reason="repository not found")
     branch = info["default_branch"]
     if branch != "main":
         return dict(result, state="deferred", reason=f"default branch is {branch}, not main")
@@ -79,7 +82,7 @@ def plan_repo(api, owner, desired):
         source = api.get(f"{base}/contents/{workflow}?ref={head}")
     except Missing:
         return dict(result, state="deferred", reason=f"{workflow} is absent on main")
-    if source.get("type") != "file":
+    if not isinstance(source, dict) or source.get("type") != "file":
         return dict(result, state="deferred", reason="workflow path is not a file")
     result["workflow_blob"] = source["sha"]
     runs = collection(api, f"{base}/actions/runs?head_sha={head}", "workflow_runs")
@@ -104,17 +107,27 @@ def plan_repo(api, owner, desired):
         protection = api.get(branch_path + "/protection")
     except Missing:
         protection = None
+    for key in ("enforce_admins", "dismiss_stale_reviews", "required_conversation_resolution"):
+        if not isinstance(desired.get(key), bool):
+            raise ValueError(f"{key} must be true or false")
     result["protection"] = protection
     actions = result["actions"]
     if protection is None:
         actions.append({"method": "PUT", "path": branch_path + "/protection", "payload": {
             "required_status_checks": {"strict": False, "checks": required},
             "enforce_admins": bool(desired["enforce_admins"]),
-            "required_pull_request_reviews": {"required_approving_review_count": minimum},
+            "required_pull_request_reviews": {"required_approving_review_count": minimum,
+                                              "dismiss_stale_reviews": desired["dismiss_stale_reviews"]},
+            "required_conversation_resolution": desired["required_conversation_resolution"],
             "restrictions": None}})
     else:
         status = protection.get("required_status_checks") or {}
         merged = copy.deepcopy(status.get("checks") or [])
+        for check in merged:
+            # GitHub reports a check that any source may set with app_id null;
+            # it accepts -1 for that on write.
+            if check.get("app_id") is None:
+                check["app_id"] = -1
         for context in status.get("contexts") or []:
             if not any(c["context"] == context for c in merged):
                 merged.append({"context": context, "app_id": -1})
@@ -194,7 +207,7 @@ def main():
             args.write_plan.write_text(output)
         print(output, end="")
         return 2 if any(r["state"] == "deferred" for r in result["repositories"]) else 0
-    except (ValueError, RuntimeError, Missing, OSError, KeyError) as e:
+    except (ValueError, RuntimeError, Missing, OSError, KeyError, TypeError, AttributeError) as e:
         parser.exit(1, f"No further changes applied: {e}\n")
 
 

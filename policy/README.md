@@ -11,6 +11,9 @@ The planner matches checks to the named workflow's run through its check
 suite, so an identically named check from another workflow does not qualify.
 The policy also records one approving review and administrator enforcement.
 Existing stronger review counts and unrelated protection settings stay intact.
+When main has no protection yet, the first protection also dismisses stale
+approvals and requires conversations to be resolved, as every protected main
+in the org does, so an approval counts only on the current head (MERGE-SOP).
 
 Tar is explicitly deferred until Set B and its bar workflow land. Review a
 policy change removing that deferral after the landing. Repositories without
@@ -43,7 +46,8 @@ policy, protection or action payload rejects the saved plan. Edited JSON
 cannot supply arbitrary API requests. Existing protection uses narrow PATCH
 requests for required checks and the review minimum, and POST only to enable
 administrator enforcement. A new protection uses PUT only after GitHub has
-confirmed that main exists and no protection currently exists.
+confirmed that main exists and no protection currently exists, and that PUT
+sets the org baseline: stale approvals dismissed and conversations resolved.
 
 GitHub provides no atomic compare-and-swap for these settings. The script
 checks the head again before each write and protection again before each

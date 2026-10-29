@@ -6,6 +6,10 @@ owner = "Proven-Commons"
 [defaults]
 minimum_reviews = 1
 enforce_admins = true
+# Used only when main has no protection yet, so the first protection
+# matches the org baseline and MERGE-SOP's current-head approval.
+dismiss_stale_reviews = true
+required_conversation_resolution = true
 workflow = ".github/workflows/bar.yml"
 contexts = ["bar / bar"]
 

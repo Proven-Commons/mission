@@ -63,6 +63,8 @@ owner = "Proven-Commons"
 [defaults]
 minimum_reviews = 1
 enforce_admins = true
+dismiss_stale_reviews = true
+required_conversation_resolution = true
 workflow = ".github/workflows/ci.yml"
 contexts = ["self-test", "lean-self-test", "template / bar"]
 [[repository]]
@@ -203,6 +205,38 @@ name = "mission"
         self.assertEqual(action["method"], "PUT")
         self.assertTrue(action["payload"]["enforce_admins"])
         self.assertEqual(action["payload"]["required_pull_request_reviews"]["required_approving_review_count"], 1)
+        # The first protection must match the org baseline: an approval on an
+        # older head does not count, and open conversations block a merge.
+        self.assertIs(action["payload"]["required_pull_request_reviews"]["dismiss_stale_reviews"], True)
+        self.assertIs(action["payload"]["required_conversation_resolution"], True)
+
+    def test_initial_protection_settings_must_be_booleans(self):
+        self.api.protection = None
+        self.path.write_text(self.path.read_text().replace("dismiss_stale_reviews = true", 'dismiss_stale_reviews = "yes"'))
+        with self.assertRaisesRegex(ValueError, "dismiss_stale_reviews"):
+            self.plan()
+
+    def test_any_source_check_is_sent_back_as_minus_one(self):
+        self.api.protection["required_status_checks"]["checks"].append({"context": "legacy", "app_id": None})
+        actions = self.plan()["repositories"][0]["actions"]
+        patch = next(a for a in actions if a["path"].endswith("required_status_checks"))
+        self.assertIn({"context": "legacy", "app_id": -1}, patch["payload"]["checks"])
+        self.assertNotIn(None, [c["app_id"] for c in patch["payload"]["checks"]])
+
+    def test_workflow_path_that_is_a_directory_is_deferred(self):
+        real_get = self.api.get
+        self.api.get = lambda path: [] if "/contents/" in path else real_get(path)
+        self.assertEqual(self.plan()["repositories"][0]["state"], "deferred")
+
+    def test_missing_repository_is_deferred_not_fatal(self):
+        real_get = self.api.get
+        def get(path):
+            if path == "repos/Proven-Commons/mission":
+                raise policy.Missing(path)
+            return real_get(path)
+        self.api.get = get
+        repo = self.plan()["repositories"][0]
+        self.assertEqual((repo["state"], repo["reason"]), ("deferred", "repository not found"))
 
     def test_tar_stays_deferred_until_policy_is_reviewed_after_landing(self):
         self.path.write_text(self.path.read_text() + '\n[[repository]]\nname = "tar"\ndeferred = "Set B not landed"\n')
