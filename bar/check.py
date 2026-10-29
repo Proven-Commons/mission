@@ -37,17 +37,13 @@ import re
 import subprocess
 import sys
 import tomllib
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
 BAR_VERSION = "2"
 STANDARD_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
-
-# People the org has named as spec reviewers, one GitHub login each. Kept
-# next to this script so a library cannot add to it; only a change to
-# this repo can.
-REVIEWERS_FILE = Path(__file__).resolve().parent / "reviewers.toml"
 
 # Limit for each long step (the proof check, the tests), in seconds. CI
 # sets it so both steps fit inside the job's own limit.
@@ -442,7 +438,7 @@ def git_spec_authors(root, files):
     """Names and emails of everyone who committed to the spec files."""
     try:
         out = subprocess.run(
-            ["git", "log", "--format=%an%x00%ae", "--", *files], cwd=root,
+            ["git", "log", "--format=%an%x00%ae%n%cn%x00%ce", "--", *files], cwd=root,
             capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -462,7 +458,7 @@ def git_prefix(root):
 
 
 class GitHub:
-    """The two GitHub API reads the approval check needs."""
+    """Live repository authority, review and source checks."""
 
     def get(self, path, raw=False):
         headers = {"Accept": "application/vnd.github.raw" if raw else "application/vnd.github+json",
@@ -475,6 +471,15 @@ class GitHub:
             body = r.read()
         return body.decode("utf-8") if raw else json.loads(body)
 
+    def pull_request(self, owner, repo, number):
+        return self.get(f"/repos/{owner}/{repo}/pulls/{number}")
+
+    def is_maintainer(self, owner, repo, login):
+        """Current repository write authority; no fixed roster or org token."""
+        permission = self.get(f"/repos/{owner}/{repo}/collaborators/"
+                              f"{urllib.parse.quote(login, safe='')}/permission")
+        return isinstance(permission, dict) and permission.get("permission") in {"write", "maintain", "admin"}
+
     def reviews(self, owner, repo, number):
         found, page = [], 1
         while True:
@@ -484,12 +489,13 @@ class GitHub:
                 return found
             page += 1
 
-    def commit_logins(self, owner, repo, path):
+    def commit_logins(self, owner, repo, path, ref=None):
         """GitHub logins of the authors and committers of every commit to a path."""
         logins, page = set(), 1
+        revision = f"&sha={urllib.parse.quote(ref, safe='')}" if ref else ""
         while True:
             batch = self.get(f"/repos/{owner}/{repo}/commits?path={urllib.parse.quote(path)}"
-                             f"&per_page=100&page={page}")
+                             f"&per_page=100&page={page}{revision}")
             for c in batch:
                 for who in ("author", "committer"):
                     login = (c.get(who) or {}).get("login")
@@ -567,11 +573,6 @@ def check_spec(root, bar, rep, offline, github):
     if not reviewer or reviewer.lower() in authors:
         rep.add(1, "FAIL", f"the approving reviewer '{reviewer}' is listed as a spec author")
         return
-    named = reviewer_list()
-    if reviewer.lower() not in named:
-        rep.unmet(1, f"'{reviewer}' is not on the org's list of spec reviewers "
-                  f"(bar/reviewers.toml in Proven-Commons/mission, {len(named)} named)")
-        return
     committers = git_spec_authors(root, files) or []
     if any(re.search(rf"(^|[\x00+]){re.escape(reviewer.lower())}([\x00@]|$)", c.lower())
            for c in committers):
@@ -595,16 +596,42 @@ def check_spec(root, bar, rep, offline, github):
             if (github.parent(here) or "").lower() != f"{owner}/{repo}".lower():
                 rep.add(1, "FAIL", f"{said}; the pull request is not in {here} or the repo it was forked from")
                 return
+        try:
+            maintainer = github.is_maintainer(owner, repo, reviewer)
+        except urllib.error.HTTPError as e:
+            if e.code != 403:
+                raise
+            rep.add(1, "SKIP", f"{said}; GitHub shows a collaborator's permission only to a token with "
+                    f"push access to {owner}/{repo} (HTTP 403), so read item 1 from the library's CI run")
+            return
+        if not maintainer:
+            rep.unmet(1, f"{said}; {reviewer} has no current write, maintain or admin access to {owner}/{repo}")
+            return
+        pull = github.pull_request(owner, repo, number)
+        if str((pull.get("user") or {}).get("login", "")).lower() == reviewer.lower():
+            rep.add(1, "FAIL", f"{said}; the reviewer authored the approval pull request")
+            return
+        head = (pull.get("head") or {}).get("sha")
+        if not head:
+            rep.add(1, "SKIP", f"{said}; GitHub did not return the pull request head")
+            return
         for rel in files:
-            if reviewer.lower() in github.commit_logins(owner, repo, prefix + rel):
+            if reviewer.lower() in github.commit_logins(owner, repo, prefix + rel, ref=head):
                 rep.add(1, "FAIL", f"{said}; GitHub shows {reviewer} as an author of a commit to {rel}")
                 return
         reviews = github.reviews(owner, repo, number)
-        mine = [r for r in reviews if r.get("state") == "APPROVED"
-                and str((r.get("user") or {}).get("login", "")).lower() == reviewer.lower()]
-        if not mine:
-            rep.unmet(1, f"{said}; GitHub shows no approving review by {reviewer} on that pull request yet")
+        mine = [r for r in reviews
+                if str((r.get("user") or {}).get("login", "")).lower() == reviewer.lower()
+                and r.get("state") in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}]
+        latest = max(enumerate(mine), key=lambda pair: (
+            pair[1].get("submitted_at") or "", pair[1].get("id") or 0, pair[0]))[1] if mine else None
+        if not latest or latest.get("state") != "APPROVED":
+            rep.unmet(1, f"{said}; GitHub shows no current approving review by {reviewer} on that pull request")
             return
+        if latest.get("commit_id") != head:
+            rep.unmet(1, f"{said}; the approving review is not on the pull request's current head")
+            return
+        mine = [latest]
         # The review must be of this exact text: hash the spec as it was
         # at the commit the reviewer approved.
         for r in mine:
@@ -624,15 +651,6 @@ def check_spec(root, bar, rep, offline, github):
         rep.add(1, "SKIP", f"{said}; could not confirm it on GitHub: {e}")
         return
     rep.unmet(1, f"{said}; the text {reviewer} approved on GitHub is not the text this hash covers")
-
-
-def reviewer_list(path=None):
-    path = Path(path or os.environ.get("BAR_REVIEWERS") or REVIEWERS_FILE)
-    try:
-        data = tomllib.loads(read_text(path))
-    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError):
-        return set()
-    return {str(r.get("login", "")).lower() for r in data.get("reviewer", []) if isinstance(r, dict)}
 
 
 def backing(rep):

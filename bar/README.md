@@ -16,7 +16,7 @@ lake build
 python3 <mission>/bar/check.py . --run-tests
 ```
 
-It prints one row per bar item, with PASS, FAIL, OPEN, or SKIP. It exits 1 if any item failed, or if `bar.toml` says `verified` and any item did not pass. `--no-lean` skips the proof check, and `--offline` skips asking GitHub to confirm the spec approval. A skipped item is never a pass.
+It prints one row per bar item, with PASS, FAIL, OPEN, or SKIP. It exits 1 if any item failed, or if `bar.toml` says `verified` and any item did not pass. `--no-lean` skips the proof check, and `--offline` skips asking GitHub to confirm the spec approval. A skipped item is never a pass. Confirming the approval needs a token with push access to the library (see below), so anyone else reads item 1 from the library's CI run.
 
 ## Start a library
 
@@ -28,7 +28,7 @@ It prints one row per bar item, with PASS, FAIL, OPEN, or SKIP. It exits 1 if an
 
 ## Record an approval
 
-GitHub does not let people approve their own pull requests, so the reviewer approves one that someone else opens:
+Reviewers are selected dynamically. An approving reviewer must currently have write, maintain or admin access to the owning repository. They must be neither a listed spec author nor an author or committer of a spec-file commit. The approval pull request must be opened by someone else. There is no fixed reviewer roster.
 
 1. Anyone but the reviewer opens a pull request that adds the approval to `bar.toml`. The hash comes from:
 
@@ -47,7 +47,7 @@ GitHub does not let people approve their own pull requests, so the reviewer appr
    ```
 
    Until the review lands, item 1 reads OPEN.
-2. The reviewer reviews the spec, checks the hash, and approves that pull request on GitHub. The review starts a new run of the check, which confirms it.
+2. The reviewer reviews the spec, checks the hash, and approves the current head of that pull request on GitHub. A later commit needs a fresh approval even if the covered hash is unchanged. A later request for changes or dismissal cancels an earlier approval. The review starts a new run of the check, which confirms it.
 3. Merge it without pushing anything more to it. A push after the approval leaves the approved text behind, and a branch rule that dismisses stale approvals would dismiss it.
 
 ## Run the self-tests
@@ -58,3 +58,14 @@ BAR_LEAN=1 python3 -m unittest discover -s bar/tests -k LeanTest -v
 ```
 
 The second line builds the template and runs `lake comparator` on planted faults: a weakened statement, a `sorry`, and an `implemented_by` that the kernels cannot see but the source rule catches. Run `lake build` in `template/` first.
+
+The online check of item 1 reads the reviewer's current permission on the
+library's repository from GitHub. It needs no fixed roster or
+organisation-wide membership token, but GitHub shows a collaborator's
+permission only to a token with push access to that repository. The
+library's own CI token has it, so read item 1 from the library's CI run. A
+run with any other token, a stranger's or a fork's, reports item 1 as SKIP
+and says why. Unknown or unreadable permission never passes item 1;
+`--offline` leaves it skipped. The existing spec hash still binds every
+covered file, and the approved commit must itself contain the matching
+approval record.

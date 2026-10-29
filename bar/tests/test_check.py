@@ -17,6 +17,7 @@ import re
 import shutil
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -70,13 +71,22 @@ class FakeGitHub:
     """Reviews on one pull request, each made at a commit whose files
     are a snapshot of the project."""
 
-    def __init__(self, login, files, state="APPROVED", forks=None, committers=()):
+    def __init__(self, login, files, state="APPROVED", forks=None, committers=(), maintainer=True, author="example-author", head=None):
         self.review = {"state": state, "user": {"login": login}, "commit_id": "c0ffee" * 6}
         self.files = files
         self.forks = forks or {}
         self.committers = {c.lower() for c in committers}
+        self.maintainer = maintainer
+        self.author = author
+        self.head = head or self.review["commit_id"]
 
-    def commit_logins(self, owner, repo, path):
+    def is_maintainer(self, owner, repo, login):
+        return self.maintainer
+
+    def pull_request(self, owner, repo, number):
+        return {"user": {"login": self.author}, "head": {"sha": self.head}}
+
+    def commit_logins(self, owner, repo, path, ref=None):
         return self.committers
 
     required = {"bar / bar"}
@@ -100,6 +110,54 @@ def approved_by(project, login="reviewer-b"):
     return FakeGitHub(login, project.snapshot())
 
 
+class MaintainerAPITest(unittest.TestCase):
+    def test_write_maintain_and_admin_are_current_maintainers(self):
+        for role in ("write", "maintain", "admin"):
+            with self.subTest(role=role):
+                github = check.GitHub()
+                github.get = mock.Mock(return_value={"permission": role})
+                self.assertTrue(github.is_maintainer("Org", "repo", "Reviewer"))
+                self.assertEqual(github.get.call_args.args[0], "/repos/Org/repo/collaborators/Reviewer/permission")
+
+    def test_read_triage_and_no_access_cannot_approve(self):
+        for role in ("read", "triage", "none", "unknown", None):
+            with self.subTest(role=role):
+                github = check.GitHub()
+                github.get = mock.Mock(return_value={"permission": role})
+                self.assertFalse(github.is_maintainer("Org", "repo", "reviewer"))
+                self.assertEqual(github.get.call_count, 1)
+
+    def test_missing_permission_is_not_maintainer_authority(self):
+        github = check.GitHub()
+        github.get = mock.Mock(return_value={})
+        self.assertFalse(github.is_maintainer("Org", "repo", "reviewer"))
+
+    def test_malformed_permission_response_is_not_authority(self):
+        github = check.GitHub()
+        for response in (None, "write", []):
+            with self.subTest(response=response):
+                github.get = mock.Mock(return_value=response)
+                self.assertFalse(github.is_maintainer("Org", "repo", "reviewer"))
+
+    def test_spec_commit_history_uses_the_approved_head(self):
+        github = check.GitHub()
+        github.get = mock.Mock(return_value=[])
+        github.commit_logins("Org", "repo", "SPEC.md", ref="current-head")
+        self.assertIn("&sha=current-head", github.get.call_args.args[0])
+
+    def test_authority_api_errors_do_not_establish_permission(self):
+        github = check.GitHub()
+        github.get = mock.Mock(side_effect=OSError("authority API unavailable"))
+        with self.assertRaises(OSError):
+            github.is_maintainer("Org", "repo", "reviewer")
+
+    def test_github_commit_logins_include_authors_and_committers(self):
+        github = check.GitHub()
+        github.get = mock.Mock(return_value=[{"author": {"login": "Writer"},
+                                             "committer": {"login": "Committer"}}])
+        self.assertEqual(github.commit_logins("Org", "repo", "SPEC.md"), {"writer", "committer"})
+
+
 class CheckTest(unittest.TestCase):
     def setUp(self):
         self.p = Project()
@@ -108,10 +166,6 @@ class CheckTest(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         os.environ.pop("GITHUB_REPOSITORY", None)
-        # The org's reviewer list, for these tests.
-        reviewers = Path(self.p.tmp.name) / "reviewers.toml"
-        reviewers.write_text('[[reviewer]]\nlogin = "reviewer-b"\n[[reviewer]]\nlogin = "example-author"\n')
-        os.environ["BAR_REVIEWERS"] = str(reviewers)
 
     def tearDown(self):
         self.p.close()
@@ -208,13 +262,67 @@ class CheckTest(unittest.TestCase):
         secs = check.sections((self.p.root / "README.md").read_text())
         self.assertIn("It is also fast.", check.find_section(secs, "What is proved"))
 
-    def test_reviewer_not_on_the_org_list_is_open_then_fails(self):
+    def test_reviewer_without_current_repo_authority_is_open_then_fails(self):
         self.p.approve(reviewer="sock-puppet")
-        got = self.p.run(offline=False, github=approved_by(self.p, "sock-puppet"))
+        got = self.p.run(offline=False, github=FakeGitHub("sock-puppet", self.p.snapshot(), maintainer=False))
         self.assertEqual(got[1][0], "OPEN")
-        self.assertIn("not on the org's list", got[1][1])
+        self.assertIn("no current write, maintain or admin access", got[1][1])
         self.p.edit("bar.toml", 'status = "in-progress"', 'status = "verified"')
-        self.assertEqual(self.status(1, offline=False, github=approved_by(self.p, "sock-puppet")), "FAIL")
+        self.assertEqual(self.status(1, offline=False, github=FakeGitHub("sock-puppet", self.p.snapshot(), maintainer=False)), "FAIL")
+
+    def test_static_reviewer_list_environment_has_no_authority(self):
+        self.p.approve()
+        with mock.patch.dict(os.environ, {"BAR_REVIEWERS": "/no-such-static-roster"}):
+            self.assertEqual(self.status(1, offline=False, github=approved_by(self.p)), "PASS")
+
+    def test_any_independent_current_maintainer_can_approve(self):
+        self.p.approve(reviewer="new-maintainer")
+        github = FakeGitHub("NEW-MAINTAINER", self.p.snapshot())
+        self.assertEqual(self.status(1, offline=False, github=github), "PASS")
+
+    def test_pull_request_author_cannot_approve(self):
+        self.p.approve()
+        github = FakeGitHub("reviewer-b", self.p.snapshot(), author="Reviewer-B")
+        self.assertEqual(self.status(1, offline=False, github=github), "FAIL")
+
+    def test_additional_spec_author_cannot_approve(self):
+        self.p.edit("bar.toml", 'spec_authors = ["example-author"]',
+                    'spec_authors = ["example-author", "Reviewer-B"]')
+        self.p.approve()
+        self.assertEqual(self.status(1, offline=False, github=approved_by(self.p)), "FAIL")
+
+    def test_approval_on_previous_head_does_not_count_even_with_same_hash(self):
+        self.p.approve()
+        github = FakeGitHub("reviewer-b", self.p.snapshot(), head="new-head")
+        status, detail = self.p.run(offline=False, github=github)[1]
+        self.assertEqual(status, "OPEN")
+        self.assertIn("current head", detail)
+
+    def test_later_request_for_changes_overrides_an_approval(self):
+        self.p.approve()
+        github = approved_by(self.p)
+        approved = dict(github.review, id=1)
+        changed = dict(github.review, id=2, state="CHANGES_REQUESTED")
+        github.reviews = lambda *args: [changed, approved]
+        self.assertEqual(self.status(1, offline=False, github=github), "OPEN")
+
+    def test_later_comment_does_not_replace_an_approval_verdict(self):
+        self.p.approve()
+        github = approved_by(self.p)
+        approved = dict(github.review, id=1)
+        comment = dict(github.review, id=2, state="COMMENTED")
+        github.reviews = lambda *args: [approved, comment]
+        self.assertEqual(self.status(1, offline=False, github=github), "PASS")
+
+    def test_local_spec_committer_cannot_approve(self):
+        import subprocess
+        git = ["git", "-C", str(self.p.root)]
+        subprocess.run(git + ["init", "-q"], check=True)
+        subprocess.run(git + ["add", "SPEC.md"], check=True)
+        subprocess.run(git + ["-c", "user.name=reviewer-b", "-c", "user.email=reviewer-b@example.org",
+                              "commit", "-q", "--author=Someone <someone@example.org>", "-m", "spec"], check=True)
+        self.p.approve()
+        self.assertEqual(self.status(1, offline=False, github=approved_by(self.p)), "FAIL")
 
     def test_reviewer_who_authored_a_spec_commit_on_github_fails(self):
         self.p.approve()
@@ -258,7 +366,10 @@ class CheckTest(unittest.TestCase):
         self.p.approve()
 
         class Broken:
-            def commit_logins(self, owner, repo, path):
+            def is_maintainer(self, owner, repo, login):
+                raise OSError("network down")
+
+            def commit_logins(self, owner, repo, path, ref=None):
                 raise OSError("network down")
 
             def reviews(self, owner, repo, number):
@@ -266,6 +377,17 @@ class CheckTest(unittest.TestCase):
         got = self.p.run(offline=False, github=Broken())
         self.assertEqual(got[1][0], "SKIP")
         self.assertIn("network down", got[1][1])
+
+    def test_permission_hidden_without_push_access_is_skipped_with_the_reason(self):
+        self.p.approve()
+
+        class NoPush:
+            def is_maintainer(self, owner, repo, login):
+                raise urllib.error.HTTPError("https://api.github.com/x", 403, "Forbidden", None, None)
+        got = self.p.run(offline=False, github=NoPush())
+        self.assertEqual(got[1][0], "SKIP")
+        self.assertIn("push access", got[1][1])
+        self.assertIn("CI run", got[1][1])
 
     def test_record_that_is_not_a_pull_request_fails(self):
         self.p.approve(record="approved in a call")
