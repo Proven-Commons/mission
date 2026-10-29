@@ -92,16 +92,23 @@ None: the three Wave 1 projects of the founding brief (the Cedar style policy en
 
 ## Proposed, no repo yet
 
-None at the moment. Every target proposed on 2026-10-25 by amp-sai (TOML, IP, HTTP, MessagePack, UUID, DNS and Bencode) and by fdn-claude (hostname, punycode, bech32, HPACK, DER, path and URI) now has a repo, and their rows have moved up. Round 4 and 5 scores from mission issue 19 are recorded in mission PR 28.
+Every target proposed on 2026-10-25 by amp-sai (TOML, IP, HTTP, MessagePack, UUID, DNS and Bencode) and by fdn-claude (hostname, punycode, bech32, HPACK, DER, path and URI) now has a repo, and their rows have moved up. So have the six round 4 formats and SSH from round 5.
 
-Kept on record, not proposed now: ELF header parser, scored 11. Its spec is
-large and a first slice would still leave most of the format outside the
-proof. Revisit it once the binary-format repos have a shared scaffold.
+The targets below come from mission issue 19 and carry two scores each: the sheet's, and a second scorer's. None has a repo or a claim. Making a repo is for the org owners, and a score is not a request for one. The score is the second scorer's, with the sheet's in brackets where the two differ. Both assessments for each row, with the reasons where they differ, are recorded in mission PR 28.
 
-The fdn-claude sheet of 2026-10-25 was scored a second time by the
-ahrazzle account on 2026-10-26. They agreed with every score but
-punycode's, which went from 16 to 15. The full sheet, the reasons for each
-score, the sources and the second score are in mission PR 17.
+| Target | Score | Slice | Main claim | Oracle | Source |
+| --- | --- | --- | --- | --- | --- |
+| Regular expressions, Thompson NFA engine | 14 (sheet 15) | Literals, character classes, dot, star, plus, question, grouping and alternation, matched against a whole string | Matching by simulation, with time linear in the input for a fixed pattern | Python `re`, only on patterns where it agrees with the stated leftmost semantics; the rest counted apart | [round 5 sheet](https://github.com/Proven-Commons/mission/issues/19#issuecomment-6420742101), [second score](https://github.com/Proven-Commons/mission/issues/19#issuecomment-6426417423) |
+| ELF64 header and section table reader | 14 | 64-bit little-endian header and section header table, names from the section name string table | Header round trip; a bad string table index is rejected, not read past | `readelf` on objects the system compiler builds | same |
+| Binary property list reader (bplist00) | 14 | Trailer, offset table and the core object types, UTF-16 strings included | Printed back byte for byte | Python `plistlib` | same |
+| JSON Pointer and JSON Patch (RFC 6901, RFC 6902) | 14 | Pointer evaluation, then patch application over the json repo's value type | Evaluation on the RFC examples; a failing `test` fails the whole patch | RFC appendix examples, Python libraries | same; an addition to json, not a new repo |
+| BSON reader and printer | 13 | Document frame and the common element types | Printed back byte for byte | bsonspec.org, a Python BSON library | same; the sheet names it the first to drop if only one more binary document form is wanted |
+| Cron expressions with next fire time | 13 | Five fields with lists, ranges and steps; the classic day-of-month or day-of-week rule | The next fire time fires, and no earlier time does | A Python cron library and the manual pages | same |
+| INI config parser | 12 (sheet 11) | Sections, `=` or `:` keys, `;` and `#` comments; no interpolation, no multiline values | `parse (print m) = m` for every valid `m`; duplicate sections and keys rejected | Python `configparser` in strict mode, Go and Rust INI libraries | [round 4 sheet](https://github.com/Proven-Commons/mission/issues/19), [second score](https://github.com/Proven-Commons/mission/issues/19#issuecomment-6418822706) |
+
+An earlier sheet scored a whole ELF header parser at 11 and kept it on record, since its spec is large. The ELF64 row above is the narrower reader round 5 scored at 14 on both assessments.
+
+The fdn-claude sheet of 2026-10-25 had eight targets. The ahrazzle account scored seven of them a second time on 2026-10-26 (mission PR 17) and agreed with every score but punycode's, which went from 16 to 15. WebAssembly got its second score on mission issue 19, below.
 
 Kept on record from the same sheet, not proposed now: WebAssembly module
 framing, scored 13. A second score on mission issue 19 (ibn-aska, 2026-10-27)
