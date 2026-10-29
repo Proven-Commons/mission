@@ -155,7 +155,13 @@ Days 31 to 75: run the pilot and Level 0 at the same time. Apprentice applicatio
 
 Days 76 to 90: pilot passes the verified bar or gets a public report that states where it stopped and why. Publish playbook version 1 with real time and cost numbers. Open Level 1 applications. Sign the first sponsor or grant for wave 1, or state plainly that wave 1 waits for funding.
 
+## Interim leadership
+
+Ahraz Arifuddin serves as interim director and head of verification, assisted by the agent team. He confirmed this arrangement on 2026-10-28. The search for permanent appointments continues.
+
+Agents prepare specifications, proofs, tests and reviews. Ahraz remains accountable for programme direction and verification decisions. An author cannot approve their own specification or merge their own work without an independent approving review, as the verified bar and [merge rules](MERGE-SOP.md) require.
+
 ## Decisions needed now
 
 1. Pilot: tar extractor as set out above, or swap in the policy engine if a sponsor tied to access control appears first.
-2. Director and head of verification: name the two people, or run a search for the head of verification first.
+2. Permanent director and head of verification: continue the search while the interim arrangement above applies.
