@@ -43,7 +43,8 @@ python3 tests/run_tests.py
 - `Spec.lean`: the statements, with `sorry` for proofs. This is the file a reviewer approves.
 - `Proofs.lean`: the proofs, under the same names.
 - `Main.lean`: the command-line tool used by the tests.
-- `lakefile.toml`: the build. It names the libraries and the executable, and sets nothing else.
+- `lakefile.toml`: the build. It names the libraries and the executable, and sets the license, `Apache-2.0`, and nothing else.
+- `LICENSE`: the unmodified Apache-2.0 text.
 - `comparator.json`: which theorems `lake comparator` checks, and which axioms it allows.
 - `bar.toml`: the project's record for the bar check: authors, approvals, and where things are.
 - `SPEC.md`: the specification in plain words.
