@@ -5,7 +5,7 @@ A pull request is merged when a maintainer who did not write it approves it.
 ## Scope
 
 This rule applies to every repository in aska-digital, Foundation-0, and Proven-Commons.
-Maintainers are repository collaborators with current write, maintain or admin authority.
+Maintainers are the members of the organisation that owns the repository.
 
 This SOP covers pull requests to main.
 

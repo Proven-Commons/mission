@@ -16,7 +16,7 @@ lake build
 python3 <mission>/bar/check.py . --run-tests
 ```
 
-It prints one row per bar item, with PASS, FAIL, OPEN, or SKIP. It exits 1 if any item failed, or if `bar.toml` says `verified` and any item did not pass. `--no-lean` skips the proof check, and `--offline` skips asking GitHub to confirm the spec approval. A skipped item is never a pass.
+It prints one row per bar item, with PASS, FAIL, OPEN, or SKIP. It exits 1 if any item failed, or if `bar.toml` says `verified` and any item did not pass. `--no-lean` skips the proof check, and `--offline` skips asking GitHub to confirm the spec approval. A skipped item is never a pass. Confirming the approval needs a token with push access to the library (see below), so anyone else reads item 1 from the library's CI run.
 
 ## Start a library
 
@@ -59,9 +59,13 @@ BAR_LEAN=1 python3 -m unittest discover -s bar/tests -k LeanTest -v
 
 The second line builds the template and runs `lake comparator` on planted faults: a weakened statement, a `sorry`, and an `implemented_by` that the kernels cannot see but the source rule catches. Run `lake build` in `template/` first.
 
-The online authority check reads the reviewer's current repository
-permission from GitHub. It needs no fixed roster or organisation-wide
-membership token. Unknown or unreadable permission never passes item 1;
+The online check of item 1 reads the reviewer's current permission on the
+library's repository from GitHub. It needs no fixed roster or
+organisation-wide membership token, but GitHub shows a collaborator's
+permission only to a token with push access to that repository. The
+library's own CI token has it, so read item 1 from the library's CI run. A
+run with any other token, a stranger's or a fork's, reports item 1 as SKIP
+and says why. Unknown or unreadable permission never passes item 1;
 `--offline` leaves it skipped. The existing spec hash still binds every
 covered file, and the approved commit must itself contain the matching
 approval record.

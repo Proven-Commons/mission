@@ -37,6 +37,7 @@ import re
 import subprocess
 import sys
 import tomllib
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -595,8 +596,16 @@ def check_spec(root, bar, rep, offline, github):
             if (github.parent(here) or "").lower() != f"{owner}/{repo}".lower():
                 rep.add(1, "FAIL", f"{said}; the pull request is not in {here} or the repo it was forked from")
                 return
-        if not github.is_maintainer(owner, repo, reviewer):
-            rep.unmet(1, f"{said}; {reviewer} is not a current maintainer of {owner}/{repo}")
+        try:
+            maintainer = github.is_maintainer(owner, repo, reviewer)
+        except urllib.error.HTTPError as e:
+            if e.code != 403:
+                raise
+            rep.add(1, "SKIP", f"{said}; GitHub shows a collaborator's permission only to a token with "
+                    f"push access to {owner}/{repo} (HTTP 403), so read item 1 from the library's CI run")
+            return
+        if not maintainer:
+            rep.unmet(1, f"{said}; {reviewer} has no current write, maintain or admin access to {owner}/{repo}")
             return
         pull = github.pull_request(owner, repo, number)
         if str((pull.get("user") or {}).get("login", "")).lower() == reviewer.lower():

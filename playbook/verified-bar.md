@@ -6,7 +6,7 @@ A project may use the word verified in public only when every item below holds. 
 
 ## The items
 
-1. **The specification is public, approved by a reviewer apart from the author, and pinned.** The specification is `SPEC.md` in plain words and a Lean file of theorem statements with `sorry` where the proofs go, called the challenge file. An independent current maintainer of the owning repository approves them. The reviewer must have write, maintain or admin repository access, and must have neither authored nor committed the spec. No fixed roster is used. The approval also covers `comparator.json`, the programs people run, the test generator, the list of code under proof, and the whole project page, since a claim anywhere on the page is a public claim. The approval is the reviewer's approving review of the GitHub pull request that records it in `bar.toml`, with the SHA-256 of what was approved. Any later change to any of it voids the approval until a reviewer approves the new text.
+1. **The specification is public, approved by a reviewer apart from the author, and pinned.** The specification is `SPEC.md` in plain words and a Lean file of theorem statements with `sorry` where the proofs go, called the challenge file. An independent reviewer approves them: someone with current write, maintain or admin access to the owning repository, who has neither authored nor committed the spec. No fixed roster is used, and the checker reads that access live, so choose the reviewer for each piece of work from the people who have it. Unknown or unreadable access does not pass. The approval also covers `comparator.json`, the programs people run, the test generator, the list of code under proof, and the whole project page, since a claim anywhere on the page is a public claim. The approval is the reviewer's approving review of the GitHub pull request that records it in `bar.toml`, with the SHA-256 of what was approved. Any later change to any of it voids the approval until a reviewer approves the new text.
 
 2. **Each public claim names the theorem behind it, and the theorem says what the claim says.** What is proved is a table of claims in plain words, each with its theorem. The reviewer reads each statement against its claim and tries to write a wrong program that still meets the statement. If one exists, the statement is too weak. A safety statement also holds for a program that does nothing, so the specification pairs each one with a statement that such a program fails, or the page says that usefulness rests on tests alone.
 
@@ -97,8 +97,5 @@ Lean 4.35 ships the tools this bar rests on: `lake comparator` and five kernels 
 - Whether the specification is the right one. That stays a person's judgment, which is why the reviewer must not be the author.
 - Speed.
 - The checker itself, and this repo. Every library runs the checker from here, so this repo's main branch needs the same protection as a release, and each library pins the version it runs.
-
-Choose the spec reviewer for each piece of work from the repository's
-current maintainers. A maintainer has write, maintain or admin permission.
-The checker reads that permission live; a fixed list in mission does not
-grant review authority. Unknown or unreadable permissions do not pass.
+- Who may review. Any admin of a library repository can make an account, an agent's included, eligible to approve its spec by giving it write access. No change to this repo is needed for that.
+- Approvals after access ends. Item 1 reads the reviewer's access when the check runs, so removing a reviewer's write access later voids every approval they gave, and a library marked verified then fails its CI until someone with access approves again.

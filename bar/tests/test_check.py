@@ -17,6 +17,7 @@ import re
 import shutil
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -265,7 +266,7 @@ class CheckTest(unittest.TestCase):
         self.p.approve(reviewer="sock-puppet")
         got = self.p.run(offline=False, github=FakeGitHub("sock-puppet", self.p.snapshot(), maintainer=False))
         self.assertEqual(got[1][0], "OPEN")
-        self.assertIn("not a current maintainer", got[1][1])
+        self.assertIn("no current write, maintain or admin access", got[1][1])
         self.p.edit("bar.toml", 'status = "in-progress"', 'status = "verified"')
         self.assertEqual(self.status(1, offline=False, github=FakeGitHub("sock-puppet", self.p.snapshot(), maintainer=False)), "FAIL")
 
@@ -376,6 +377,17 @@ class CheckTest(unittest.TestCase):
         got = self.p.run(offline=False, github=Broken())
         self.assertEqual(got[1][0], "SKIP")
         self.assertIn("network down", got[1][1])
+
+    def test_permission_hidden_without_push_access_is_skipped_with_the_reason(self):
+        self.p.approve()
+
+        class NoPush:
+            def is_maintainer(self, owner, repo, login):
+                raise urllib.error.HTTPError("https://api.github.com/x", 403, "Forbidden", None, None)
+        got = self.p.run(offline=False, github=NoPush())
+        self.assertEqual(got[1][0], "SKIP")
+        self.assertIn("push access", got[1][1])
+        self.assertIn("CI run", got[1][1])
 
     def test_record_that_is_not_a_pull_request_fails(self):
         self.p.approve(record="approved in a call")
