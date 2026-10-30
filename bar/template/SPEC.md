@@ -1,6 +1,6 @@
 # Specification: clamp
 
-This is the template's specification. Replace it with the real one. A reviewer who did not write it approves it together with `Spec.lean` and the page sections listed in `bar.toml`.
+This is the template's specification. Replace it with the real one. A reviewer who did not write it approves it together with `Clamp/Spec.lean` and the page sections listed in `bar.toml`.
 
 ## Scope
 
@@ -12,12 +12,12 @@ Every input is valid. The function is total and has no error case.
 
 ## What must always hold
 
-Each property below is a theorem in `Spec.lean`.
+Each property below is a theorem in `Clamp/Spec.lean`.
 
 | Property | Theorem |
 |----------|---------|
-| With `lo ≤ hi`, the result is at least `lo` and at most `hi`. | `Spec.clamp_in_range` |
-| A value already in the range comes back unchanged. | `Spec.clamp_of_mem` |
+| With `lo ≤ hi`, the result is at least `lo` and at most `hi`. | `Clamp.Spec.clamp_in_range` |
+| A value already in the range comes back unchanged. | `Clamp.Spec.clamp_of_mem` |
 
 The first is a safety property. A function that always returns `lo` meets it, so the second is there to rule that function out.
 

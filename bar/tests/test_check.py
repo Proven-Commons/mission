@@ -121,6 +121,20 @@ class CheckTest(unittest.TestCase):
 
     # The template as shipped.
 
+    def test_template_uses_library_owned_modules_and_declarations(self):
+        import json
+        import tomllib
+        cfg = json.loads((self.p.root / "comparator.json").read_text())
+        lake = tomllib.loads((self.p.root / "lakefile.toml").read_text())
+        self.assertEqual(cfg["challenge_module"], "Clamp.Spec")
+        self.assertEqual(cfg["solution_module"], "Clamp.Proofs")
+        self.assertTrue(all(n.startswith("Clamp.Spec.") for n in cfg["theorem_names"]))
+        self.assertFalse((self.p.root / "Spec.lean").exists())
+        self.assertFalse((self.p.root / "Proofs.lean").exists())
+        roots = {lib["name"]: lib.get("roots") for lib in lake["lean_lib"]}
+        self.assertEqual(roots["ClampSpec"], ["Clamp.Spec"])
+        self.assertEqual(roots["ClampProofs"], ["Clamp.Proofs"])
+
     def test_template_has_no_failures(self):
         got = self.p.run()
         self.assertEqual(got[1][0], "OPEN")
@@ -145,7 +159,7 @@ class CheckTest(unittest.TestCase):
     def test_changing_a_statement_voids_the_approval(self):
         self.p.approve()
         github = approved_by(self.p)
-        self.p.edit("Spec.lean", "lo ≤ clamp lo hi x ∧", "lo ≤ clamp lo hi x ∨")
+        self.p.edit("Clamp/Spec.lean", "lo ≤ clamp lo hi x ∧", "lo ≤ clamp lo hi x ∨")
         got = self.p.run(offline=False, github=github)
         self.assertEqual(got[1][0], "OPEN")
         self.assertIn("changed after the last approval", got[1][1])
@@ -181,7 +195,7 @@ class CheckTest(unittest.TestCase):
 
     def test_line_endings_do_not_change_the_hash(self):
         before, _ = check.spec_hash(self.p.root, check.load_bar(self.p.root))
-        path = self.p.root / "Spec.lean"
+        path = self.p.root / "Clamp/Spec.lean"
         path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
         after, _ = check.spec_hash(self.p.root, check.load_bar(self.p.root))
         self.assertEqual(before, after)
@@ -232,7 +246,7 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(got[1][0], "OPEN")
 
     def test_each_reviewed_file_voids_the_approval(self):
-        for rel, old, new in [("comparator.json", '"Spec.clamp_of_mem"', '"Spec.clamp_of_mem" '),
+        for rel, old, new in [("comparator.json", '"Clamp.Spec.clamp_of_mem"', '"Clamp.Spec.clamp_of_mem" '),
                               ("Main.lean", "It calls the proved function", "It calls the function"),
                               ("tests/run_tests.py", "default=20261024", "default=1")]:
             with self.subTest(rel):
@@ -287,7 +301,7 @@ class CheckTest(unittest.TestCase):
         # spec said something else, and the author recorded the hash of
         # text the reviewer never saw.
         before = approved_by(self.p)
-        self.p.edit("Spec.lean", "lo ≤ clamp lo hi x ∧", "lo ≤ clamp lo hi x ∨")
+        self.p.edit("Clamp/Spec.lean", "lo ≤ clamp lo hi x ∧", "lo ≤ clamp lo hi x ∨")
         self.p.approve()
         got = self.p.run(offline=False, github=before)
         self.assertEqual(got[1][0], "OPEN")
@@ -310,11 +324,11 @@ class CheckTest(unittest.TestCase):
     # Item 2: claims name theorems.
 
     def test_theorem_missing_from_claims_is_open(self):
-        self.p.edit("README.md", "| `Spec.clamp_of_mem` |", "| (see Spec.lean) |")
+        self.p.edit("README.md", "| `Clamp.Spec.clamp_of_mem` |", "| (see Clamp/Spec.lean) |")
         self.assertEqual(self.status(2), "OPEN")
 
     def test_theorem_name_must_match_whole(self):
-        self.p.edit("README.md", "`Spec.clamp_of_mem`", "`Spec.clamp_of_mem_aux`")
+        self.p.edit("README.md", "`Clamp.Spec.clamp_of_mem`", "`Clamp.Spec.clamp_of_mem_aux`")
         self.assertEqual(self.status(2), "OPEN")
 
     # Item 3: proof configuration.
@@ -324,7 +338,7 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(self.status(3), "FAIL")
 
     def test_challenge_file_must_be_approved(self):
-        self.p.edit("bar.toml", 'files = ["SPEC.md", "Spec.lean"]', 'files = ["SPEC.md"]')
+        self.p.edit("bar.toml", 'files = ["SPEC.md", "Clamp/Spec.lean"]', 'files = ["SPEC.md"]')
         got = self.p.run()
         self.assertEqual(got[3][0], "FAIL")
         self.assertIn("not one of the approved spec files", got[3][1])
@@ -461,13 +475,13 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(self.status(4), "FAIL")
 
     def test_unfinished_proofs_are_open_in_progress_and_fail_once_verified(self):
-        self.assertEqual(self.status(4), "PASS")  # Spec.lean is full of sorry
-        self.p.edit("Proofs.lean", "  unfold clamp\n  omega\n\ntheorem Spec.clamp_of_mem",
-                    "  sorry\n\ntheorem Spec.clamp_of_mem")
+        self.assertEqual(self.status(4), "PASS")  # Clamp/Spec.lean is full of sorry
+        self.p.edit("Clamp/Proofs.lean", "  unfold clamp\n  omega\n\ntheorem Clamp.Spec.clamp_of_mem",
+                    "  sorry\n\ntheorem Clamp.Spec.clamp_of_mem")
         self.p.edit("Clamp.lean", "end Clamp", "theorem t2 : 1 = 1 := by admit\n\nend Clamp")
         status, detail = self.p.run()[4]
         self.assertEqual(status, "OPEN")
-        self.assertIn("Proofs.lean:", detail)
+        self.assertIn("Clamp/Proofs.lean:", detail)
         self.assertIn("admit", detail)
         self.p.edit("bar.toml", 'status = "in-progress"', 'status = "verified"')
         self.assertEqual(self.status(4), "FAIL")
@@ -682,15 +696,15 @@ class LeanTest(unittest.TestCase):
         self.assertEqual(self.p.run(no_lean=False)[3][0], "PASS")
 
     def test_weaker_statement_fails(self):
-        self.p.edit("Proofs.lean", "    lo ≤ clamp lo hi x ∧ clamp lo hi x ≤ hi := by\n  unfold clamp\n  omega",
+        self.p.edit("Clamp/Proofs.lean", "    lo ≤ clamp lo hi x ∧ clamp lo hi x ≤ hi := by\n  unfold clamp\n  omega",
                     "    lo ≤ clamp lo hi x ∨ clamp lo hi x ≤ hi := by\n  unfold clamp\n  omega")
         status, detail = self.p.run(no_lean=False)[3]
         self.assertEqual(status, "FAIL")
         self.assertIn("do not match", detail)
 
     def test_sorry_proof_fails_once_verified(self):
-        self.p.edit("Proofs.lean", "  unfold clamp\n  omega\n\ntheorem Spec.clamp_of_mem",
-                    "  sorry\n\ntheorem Spec.clamp_of_mem")
+        self.p.edit("Clamp/Proofs.lean", "  unfold clamp\n  omega\n\ntheorem Clamp.Spec.clamp_of_mem",
+                    "  sorry\n\ntheorem Clamp.Spec.clamp_of_mem")
         self.p.edit("bar.toml", 'status = "in-progress"', 'status = "verified"')
         got = self.p.run(no_lean=False)
         self.assertEqual(got[3][0], "FAIL")
@@ -701,9 +715,9 @@ class LeanTest(unittest.TestCase):
         import json
         path = self.p.root / "comparator.json"
         cfg = json.loads(path.read_text())
-        cfg["theorem_names"] = ["Spec.clamp_in_range", "Spec.clamp_of_mem", *extra_theorems]
+        cfg["theorem_names"] = ["Clamp.Spec.clamp_in_range", "Clamp.Spec.clamp_of_mem", *extra_theorems]
         path.write_text(json.dumps(cfg, indent=2))
-        subprocess.run(["lake", "build", "Spec"], cwd=self.p.root, capture_output=True, check=True)
+        subprocess.run(["lake", "build", "ClampSpec"], cwd=self.p.root, capture_output=True, check=True)
         bar = check.load_bar(self.p.root)
         cmp_cfg, _ = check.load_comparator(self.p.root)
         return check.statement_dependencies(self.p.root, bar, cmp_cfg)[0]
@@ -713,7 +727,7 @@ class LeanTest(unittest.TestCase):
 
     def test_instance_in_the_code_that_changes_a_statement_fails(self):
         # The comparator sees the same instance on both sides, so only the
-        # walk can tell that `≤` in Spec.lean no longer means Nat.le.
+        # walk can tell that `≤` in Clamp/Spec.lean no longer means Nat.le.
         self.p.edit("Clamp.lean", "end Clamp",
                     "instance (priority := high) sneaky : LE Nat := ⟨fun _ _ => True⟩\n\nend Clamp")
         problems = self.walk()
@@ -721,34 +735,34 @@ class LeanTest(unittest.TestCase):
 
     def test_predicate_in_the_code_fails_and_in_the_spec_passes(self):
         self.p.edit("Clamp.lean", "end Clamp", "def Good (n : Nat) : Prop := n = n\n\nend Clamp")
-        self.p.append("Spec.lean", "\ntheorem Spec.good (lo hi x : Nat) : Clamp.Good (clamp lo hi x) := sorry\n")
-        problems = self.walk(["Spec.good"])
+        self.p.append("Clamp/Spec.lean", "\ntheorem Clamp.Spec.good (lo hi x : Nat) : Clamp.Good (clamp lo hi x) := sorry\n")
+        problems = self.walk(["Clamp.Spec.good"])
         self.assertTrue(any("Clamp.Good" in p for p in problems), problems)
 
         self.p.edit("Clamp.lean", "def Good (n : Nat) : Prop := n = n\n", "")
-        self.p.edit("Spec.lean", "theorem Spec.good (lo hi x : Nat) : Clamp.Good",
-                    "def Spec.Good (n : Nat) : Prop := n = n\n\ntheorem Spec.good (lo hi x : Nat) : Spec.Good")
-        self.assertEqual(self.walk(["Spec.good"]), [])
+        self.p.edit("Clamp/Spec.lean", "theorem Clamp.Spec.good (lo hi x : Nat) : Clamp.Good",
+                    "def Clamp.Spec.Good (n : Nat) : Prop := n = n\n\ntheorem Clamp.Spec.good (lo hi x : Nat) : Clamp.Spec.Good")
+        self.assertEqual(self.walk(["Clamp.Spec.good"]), [])
 
     def test_theorem_left_out_of_comparator_json_fails(self):
         # Found in review: a claimed theorem could be dropped from
         # comparator.json, and so from the proof check, after approval.
-        self.p.append("Spec.lean", "\ntheorem Spec.clamp_le_hi (lo hi x : Nat) (h : lo ≤ hi) : "
+        self.p.append("Clamp/Spec.lean", "\ntheorem Clamp.Spec.clamp_le_hi (lo hi x : Nat) (h : lo ≤ hi) : "
                       "clamp lo hi x ≤ hi := sorry\n")
         problems = self.walk()
-        self.assertTrue(any("does not name these theorems" in p and "Spec.clamp_le_hi" in p
+        self.assertTrue(any("does not name these theorems" in p and "Clamp.Spec.clamp_le_hi" in p
                             for p in problems), problems)
 
     def test_unfinished_proof_is_open_in_progress(self):
-        self.p.edit("Proofs.lean", "  unfold clamp\n  omega\n\ntheorem Spec.clamp_of_mem",
-                    "  sorry\n\ntheorem Spec.clamp_of_mem")
+        self.p.edit("Clamp/Proofs.lean", "  unfold clamp\n  omega\n\ntheorem Clamp.Spec.clamp_of_mem",
+                    "  sorry\n\ntheorem Clamp.Spec.clamp_of_mem")
         got = self.p.run(no_lean=False)
         self.assertEqual(got[3][0], "OPEN", got[3][1])
         self.assertEqual(got[4][0], "OPEN")
 
     def test_statement_without_code_fails(self):
-        self.p.append("Spec.lean", "\ntheorem Spec.trivial : 1 + 1 = 2 := sorry\n")
-        problems = self.walk(["Spec.trivial"])
+        self.p.append("Clamp/Spec.lean", "\ntheorem Clamp.Spec.trivial : 1 + 1 = 2 := sorry\n")
+        problems = self.walk(["Clamp.Spec.trivial"])
         self.assertTrue(any("mentions no code under proof" in p for p in problems), problems)
 
     def test_implemented_by_passes_the_kernels_so_the_source_rule_must_catch_it(self):
