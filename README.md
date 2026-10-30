@@ -45,6 +45,8 @@ The [round four and five candidate scores](research/candidate-rounds-four-five.m
 
 See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
 
+The [branch policy](policy/README.md) records required checks and the read-only planning and explicit application steps. Merging the policy changes no live setting; an administrator applies a reviewed plan.
+
 ## Website
 
 The public website is a static, buildless GitHub Pages site. Pages publishes the root of `main`; `.nojekyll` serves the files directly. Changes to `index.html` or `assets/` publish automatically after they reach `main`. No package installation, build system, secrets, or third-party scripts are required.
