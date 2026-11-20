@@ -601,8 +601,11 @@ def check_spec(root, bar, rep, offline, github):
         except urllib.error.HTTPError as e:
             if e.code != 403:
                 raise
-            rep.add(1, "SKIP", f"{said}; GitHub shows a collaborator's permission only to a token with "
-                    f"push access to {owner}/{repo} (HTTP 403), so read item 1 from the library's CI run")
+            rep.add(1, "SKIP", f"{said}; this token cannot read GitHub's collaborator-permission "
+                    f"endpoint for {owner}/{repo} (HTTP 403). A user token needs push access; "
+                    f"the library's own Actions token is expected to work under Metadata read, "
+                    f"though no library CI run has confirmed that yet. Read item 1 from the "
+                    f"library's CI run")
             return
         if not maintainer:
             rep.unmet(1, f"{said}; {reviewer} has no current write, maintain or admin access to {owner}/{repo}")

@@ -62,11 +62,13 @@ The second line builds the template and runs `lake comparator` on planted faults
 
 The online check of item 1 reads the reviewer's current permission on the
 library's repository from GitHub. It needs no fixed roster or
-organisation-wide membership token, but GitHub shows a collaborator's
-permission only to a token with push access to that repository. The
-library's own CI token has it, so read item 1 from the library's CI run. A
-run with any other token, a stranger's or a fork's, reports item 1 as SKIP
-and says why. Unknown or unreadable permission never passes item 1;
-`--offline` leaves it skipped. The existing spec hash still binds every
-covered file, and the approved commit must itself contain the matching
-approval record.
+organisation-wide membership token. GitHub returns 403 to a user token
+without push access to that repository. The library's bar workflow grants
+only `contents: read` and `pull-requests: read`, but GitHub documents the
+endpoint under Metadata read, which every Actions token has; no library CI
+run has confirmed that yet. Read item 1 from the library's CI run when your
+token cannot call the endpoint. A fork pull request's token is read-only and
+reports item 1 as SKIP for the same reason. Unknown or unreadable permission
+never passes item 1; `--offline` leaves it skipped. The existing spec hash
+still binds every covered file, and the approved commit must itself contain
+the matching approval record.
