@@ -21,7 +21,8 @@ It prints one row per bar item, with PASS, FAIL, OPEN, or SKIP. It exits 1 if an
 ## Start a library
 
 1. Copy `template/` into a new repo named for the software it verifies.
-2. Replace `Clamp.lean`, `Spec.lean`, `Proofs.lean`, `Main.lean`, `SPEC.md`, the tests, and the page. Update `lakefile.toml` (library and executable names, `defaultTargets`), the executable path in `tests/run_tests.py`, `comparator.json`, and `bar.toml` (including `[spec] code`) to match.
+2. Replace `Clamp.lean`, `Clamp/Spec.lean`, `Clamp/Proofs.lean`, `Main.lean`, `SPEC.md`, the tests, and the page. Update `lakefile.toml` (library and executable names, `defaultTargets`), the executable path in `tests/run_tests.py`, `comparator.json`, and `bar.toml` (including `[spec] code`) to match.
+   Keep both module paths and declaration names under the library name. For example, rename `Clamp.Spec` and `Clamp.Proofs` to `YourLib.Spec` and `YourLib.Proofs`, and `Clamp.Spec.clamp_of_mem` to `YourLib.Spec.your_theorem`. Keep the matching Lake `roots`, comparator names, spec paths and page claims in step. This avoids collisions when libraries are imported together. Existing libraries need their own migration and review.
 3. Keep `[project] status = "in-progress"` until every item passes.
 4. In `.github/workflows/bar.yml`, pin the workflow and `bar-ref` to the same tag or commit of this repo.
 5. Have the default branch require the `bar / bar` check, which the "verified bar" workflow reports.

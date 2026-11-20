@@ -1,15 +1,17 @@
 name = "clamp"
 version = "0.1.0"
-defaultTargets = ["Clamp", "Spec", "Proofs", "clamp"]
+defaultTargets = ["Clamp", "ClampSpec", "ClampProofs", "clamp"]
 
 [[lean_lib]]
 name = "Clamp"
 
 [[lean_lib]]
-name = "Spec"
+name = "ClampSpec"
+roots = ["Clamp.Spec"]
 
 [[lean_lib]]
-name = "Proofs"
+name = "ClampProofs"
+roots = ["Clamp.Proofs"]
 
 [[lean_exe]]
 name = "clamp"
