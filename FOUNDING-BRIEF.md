@@ -48,7 +48,7 @@ Each project follows the same seven steps. The playbook is public. Each step has
 
 A project may use the word verified in public only when all of these hold. The playbook page `playbook/verified-bar.md` says how each one is checked, and `bar/` in this repo holds the checker and the CI workflow every library repo runs.
 
-1. The specification is public, approved by a reviewer on the org's list who did not write it, and pinned. The approval records a hash of the specification, the whole project page, the programs people run, and the tests, and any later change voids it.
+1. The specification is public, approved by an independent reviewer with current write, maintain or admin access to the library's repository, and pinned. The approval records a hash of the specification, the whole project page, the programs people run, and the tests, and any later change voids it.
 2. Each public claim names the theorem behind it, and the reviewer has checked that the theorem says what the claim says.
 3. One command, `lake comparator --paranoid`, re-checks that the proofs prove exactly the approved statements, with only the standard Lean axioms, under every kernel shipped with Lean. Nothing outside the approved text and the code under proof can change what a statement means.
 4. The code that runs is the code that was proved. The programs people run call the proved functions, and project code uses no `implemented_by`, `extern`, `unsafe`, native evaluation, metaprogramming, or `axiom`, and no `sorry` or `admit` outside the statements, except for exceptions the page lists.
