@@ -1,6 +1,6 @@
 {
-  "challenge_module": "Spec",
-  "solution_module": "Proofs",
-  "theorem_names": ["Spec.clamp_in_range", "Spec.clamp_of_mem"],
+  "challenge_module": "Clamp.Spec",
+  "solution_module": "Clamp.Proofs",
+  "theorem_names": ["Clamp.Spec.clamp_in_range", "Clamp.Spec.clamp_of_mem"],
   "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"]
 }

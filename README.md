@@ -43,7 +43,11 @@ Graduation at each level is merged work that a computer checked. That record is 
 
 Original code and documents use [Apache-2.0](LICENSE). The [licensing policy](LICENSE-POLICY.md) explains contributor ownership and outside material.
 
+The [round four and five candidate scores](research/candidate-rounds-four-five.md) record both assessments' totals and the second assessment's axis scores.
+
 See FOUNDING-BRIEF.md for the full plan: how a project moves through the factory, how the academy works, how the org is funded, and the 90-day plan. See [reviews/](reviews/) for review records: what an attack on a project found, with commands to reproduce it.
+
+The [branch policy](policy/README.md) records required checks and the read-only planning and explicit application steps. Merging the policy changes no live setting; an administrator applies a reviewed plan.
 
 ## Website
 

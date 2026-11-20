@@ -15,8 +15,8 @@ entry_points = ["Main.lean"]
 
 [spec]
 # What a reviewer approves, together with the whole page named above.
-# Spec.lean is the challenge module named in comparator.json.
-files = ["SPEC.md", "Spec.lean"]
+# Clamp/Spec.lean is the challenge module named in comparator.json.
+files = ["SPEC.md", "Clamp/Spec.lean"]
 # The code under proof: the definitions the statements are about. Any
 # other project definition a statement uses must sit in the spec files,
 # so that the approval fixes what the statement means.
