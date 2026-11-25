@@ -40,7 +40,9 @@ command = "python3 tests/run_tests.py"
 files = ["tests/run_tests.py"]
 
 # Exceptions to the source rule, one entry per file and feature. Each
-# file must also be named under "What you must trust" on the page.
+# entry is pinned by `--spec-hash` (adding or editing one voids prior
+# approvals), and each file must also be named under "What you must trust"
+# on the page.
 #
 # [[trusted]]
 # file = "Clamp/Ffi.lean"
