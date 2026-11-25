@@ -126,14 +126,15 @@ def read_text(path):
     return path.read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
 
 
-def load_bar(root):
-    path = root / "bar.toml"
-    if not path.is_file():
-        raise ProjectError("no bar.toml at the project root")
-    try:
-        bar = tomllib.loads(read_text(path))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
-        raise ProjectError(f"bar.toml does not parse: {e}")
+_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
+_CODE_ENTRY_RE = re.compile(r"[^\s\x00-\x1f\x7f]+")
+_TRUSTED_KEYS = {"file", "feature", "reason"}
+
+
+def validate_bar(bar):
+    """Validate bar.toml structure and reject unsafe control/whitespace framing."""
+    if not isinstance(bar, dict):
+        raise ProjectError("bar.toml must be a table")
     shape = [
         ("project", dict), ("spec", dict), ("tests", dict),
         ("project.spec_authors", list), ("project.entry_points", list), ("spec.files", list),
@@ -146,15 +147,47 @@ def load_bar(root):
             node = node.get(part) if isinstance(node, dict) else None
         if node is not None and not isinstance(node, kind):
             raise ProjectError(f"bar.toml: {key} must be a {'table' if kind is dict else 'list'}")
-    for key in ("spec.approval", "trusted"):
-        parent, child = key.split(".") if "." in key else (None, key)
-        entries = (bar.get(parent, {}) if parent else bar).get(child, [])
-        if any(not isinstance(e, dict) for e in entries):
-            raise ProjectError(f"bar.toml: each [[{key}]] entry must be a table")
+    page = bar.get("project", {}).get("page")
+    if page is not None and (not isinstance(page, str) or not page or _CTRL_RE.search(page)):
+        raise ProjectError("bar.toml: project.page must be a non-empty string without control characters")
+    for key in ("spec.files", "project.entry_points", "tests.files"):
+        parent, child = key.split(".")
+        for item in bar.get(parent, {}).get(child, []):
+            if not isinstance(item, str) or not item or _CTRL_RE.search(item):
+                raise ProjectError(f"bar.toml: each {key} entry must be a non-empty string without control characters")
+    for item in bar.get("spec", {}).get("code", []):
+        if not isinstance(item, str) or not _CODE_ENTRY_RE.fullmatch(item):
+            raise ProjectError("bar.toml: each spec.code entry must be a string without whitespace or control characters")
+    for entry in bar.get("spec", {}).get("approval", []):
+        if not isinstance(entry, dict):
+            raise ProjectError("bar.toml: each [[spec.approval]] entry must be a table")
+    for entry in bar.get("trusted", []):
+        if not isinstance(entry, dict):
+            raise ProjectError("bar.toml: each [[trusted]] entry must be a table")
+        extra = set(entry) - _TRUSTED_KEYS
+        if extra:
+            raise ProjectError(f"bar.toml: [[trusted]] has unsupported key(s): {', '.join(sorted(extra))}")
+        for req in ("file", "feature", "reason"):
+            val = entry.get(req)
+            if not isinstance(val, str) or not val.strip() or _CTRL_RE.search(val):
+                raise ProjectError(
+                    f"bar.toml: [[trusted]] {req} must be a non-empty string without control characters"
+                )
     status = bar.get("project", {}).get("status")
     if status not in ("in-progress", "verified"):
         raise ProjectError('bar.toml: [project] status must be "in-progress" or "verified"')
     return bar
+
+
+def load_bar(root):
+    path = root / "bar.toml"
+    if not path.is_file():
+        raise ProjectError("no bar.toml at the project root")
+    try:
+        bar = tomllib.loads(read_text(path))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+        raise ProjectError(f"bar.toml does not parse: {e}")
+    return validate_bar(bar)
 
 
 def load_comparator(root):
@@ -220,9 +253,10 @@ def reviewed_files(bar):
 def spec_hash(root, bar, read=None):
     """The hash a reviewer approves: the spec files, comparator.json, the
     entry points people run, the test files, the whole public page (a
-    claim anywhere on it is a public claim), and the list of code under
-    proof. `read` maps a path in the project to its text; by default it
-    reads the working tree."""
+    claim anywhere on it is a public claim), the list of code under
+    proof, and any trusted source-rule exceptions. `read` maps a path in
+    the project to its text; by default it reads the working tree."""
+    validate_bar(bar)
     read = read or (lambda rel: read_text(root / rel))
     h = hashlib.sha256()
     covered = []
@@ -230,9 +264,17 @@ def spec_hash(root, bar, read=None):
         data = read(rel).replace("\r\n", "\n").encode("utf-8")
         h.update(f"file {rel}\n{hashlib.sha256(data).hexdigest()}\n".encode())
         covered.append(rel)
-    code = sorted(str(c) for c in bar.get("spec", {}).get("code", []))
+    code = sorted(bar.get("spec", {}).get("code", []))
     h.update(("code " + " ".join(code) + "\n").encode())
     covered.append("bar.toml: [spec] code = " + ", ".join(code))
+    trusted_raw = bar.get("trusted", [])
+    if trusted_raw:
+        canon = lambda t: json.dumps(t, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        entries = sorted(trusted_raw, key=canon)
+        payload = json.dumps([canon(t) for t in entries], separators=(",", ":"), ensure_ascii=True)
+        h.update(f"trusted {payload}\n".encode())
+        summary = ", ".join(f"{t['file']}:{t['feature']}" for t in entries)
+        covered.append("bar.toml: [[trusted]] = " + summary)
     return h.hexdigest(), covered
 
 
@@ -317,16 +359,22 @@ def lakefile_problems(root, trusted):
             if key == "leanOptions" and isinstance(value, dict):
                 problems.extend(f"{where} sets the option `{o}`" for o in value
                                 if RISKY_OPTION.match(o) and ("lakefile.toml", o) not in trusted)
-            if key == "srcDir" and isinstance(value, str):
-                p = Path(value)
-                if p.is_absolute() or ".." in p.parts:
-                    problems.append(f"{where} has a srcDir outside the project: {value}")
+            if key == "srcDir" and value not in (".", "./"):
+                problems.append(
+                    f"{where} sets `srcDir` to {value!r}; sources must live at the project root"
+                )
 
     keys(cfg, "package", "lakefile.toml")
     for kind in ("lean_lib", "lean_exe", "require"):
-        for i, table in enumerate(cfg.get(kind, [])):
+        tables = cfg.get(kind, [])
+        if not isinstance(tables, list):
+            problems.append(f"lakefile.toml `{kind}` must be an array of tables")
+            continue
+        for i, table in enumerate(tables):
             if isinstance(table, dict):
                 keys(table, kind, f"lakefile.toml [[{kind}]] {table.get('name', i)}")
+            else:
+                problems.append(f"lakefile.toml [[{kind}]] entry {i} must be a table")
     return problems
 
 
@@ -611,10 +659,13 @@ def check_spec(root, bar, rep, offline, github):
             commit = r.get("commit_id")
             if not commit:
                 continue
-            at = spec_hash(root, bar, lambda rel: github.read(owner, repo, commit, prefix + rel))[0]
             # The reviewed pull request must be the one that records this
             # approval, so the review is of the spec, not of something else.
-            then = tomllib.loads(github.read(owner, repo, commit, prefix + "bar.toml"))
+            try:
+                then = validate_bar(tomllib.loads(github.read(owner, repo, commit, prefix + "bar.toml")))
+            except (ProjectError, tomllib.TOMLDecodeError):
+                continue
+            at = spec_hash(root, then, lambda rel: github.read(owner, repo, commit, prefix + rel))[0]
             recorded = any(x.get("sha256") == current and str(x.get("reviewer", "")).lower() == reviewer.lower()
                            for x in then.get("spec", {}).get("approval", []) if isinstance(x, dict))
             if at == current and recorded:
@@ -834,10 +885,14 @@ def check_page(root, page_secs, page, bar, rep, page_text=None):
         return
     problems = []
     for title in SECTIONS:
-        if find_section(page_secs, title) is None:
+        sec = find_section(page_secs, title)
+        if sec is None:
             problems.append(f"no '{title}' section")
-    trust = (find_section(page_secs, TRUST) or "").lower()
-    if trust:
+        elif not sec.strip():
+            problems.append(f"'{title}' section is empty")
+    trust_sec = find_section(page_secs, TRUST)
+    if trust_sec is not None:
+        trust = trust_sec.lower()
         absent = [w for w in TRUST_WORDS if w not in trust]
         if absent:
             problems.append(f"'{TRUST}' does not mention: {', '.join(absent)}")
@@ -856,12 +911,13 @@ def check_page(root, page_secs, page, bar, rep, page_text=None):
         problems.append(f"the page's status line does not say in progress: '{line.group(1).strip()}'")
     elif status == "verified" and ("verified" not in said or "not" in said):
         problems.append(f"the page's status line does not say verified: '{line.group(1).strip()}'")
-    recheck = find_section(page_secs, RECHECK) or ""
-    if recheck and RECHECK_COMMAND not in recheck:
-        problems.append(f"'{RECHECK}' does not give `{RECHECK_COMMAND}`")
-    test_cmd = bar.get("tests", {}).get("command")
-    if recheck and test_cmd and test_cmd not in recheck:
-        problems.append(f"'{RECHECK}' does not give the test command `{test_cmd}`")
+    recheck_sec = find_section(page_secs, RECHECK)
+    if recheck_sec is not None:
+        if RECHECK_COMMAND not in recheck_sec:
+            problems.append(f"'{RECHECK}' does not give `{RECHECK_COMMAND}`")
+        test_cmd = bar.get("tests", {}).get("command")
+        if test_cmd and test_cmd not in recheck_sec:
+            problems.append(f"'{RECHECK}' does not give the test command `{test_cmd}`")
     if problems:
         rep.unmet(6, "; ".join(problems))
     else:
